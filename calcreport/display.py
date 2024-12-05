@@ -29,7 +29,7 @@ DEBUG_MODE = True
 def debug_print(*args, **kwargs):
     if DEBUG_MODE:
         print("DEBUG:", *args, **kwargs)
-
+'''
 def pint_to_sympy (quantity: Q_):
 
     magnitude, units = (1*quantity).to_tuple() # quantity is multiplied by 1 so that it is converted to pint.Quantity if pint.Unit is passed instead
@@ -66,7 +66,7 @@ def pint_to_sympy (quantity: Q_):
  
 pint.Quantity._sympy_ = lambda x: pint_to_sympy(x)
 pint.Unit._sympy_ = lambda x: pint_to_sympy(1*x)
-
+'''
 
 
 def capture_var_name(func):
@@ -122,16 +122,16 @@ def displaymath(var_name, expr, comment='', comment_size="small", equation_size=
         if isinstance(expr.magnitude, np.ndarray):
             debug_print("Magnitude is a NumPy array.")
             # If it's a NumPy array, format it as an equation
-            expr = Matrix(sympify(expr))
+            #expr = Matrix(sympify(expr))
             debug_print(f"Sympified expression: {expr}")
-            #equation_latex = f"{formatted_var_name} = {sp.latex(Matrix(expr.magnitude))} \\, {sp.latex(expr.units)}"
-            equation_latex = f"{formatted_var_name} = {sp.latex(expr)}"
+            equation_latex = f"{formatted_var_name} = {sp.latex(Matrix(expr.magnitude))} \\, {sp.latex(expr.units)}"
+            #equation_latex = f"{formatted_var_name} = {sp.latex(expr)}"
         else:
             debug_print("Magnitude is not a NumPy array.")
-            expr = sympify(expr)
+            #expr = sympify(expr)
             # If it's a pint Quantity, format it as an equation
-            #equation_latex = f"{formatted_var_name} = {sp.latex(expr.magnitude)} \\, {sp.latex(expr.units)}"
-            equation_latex = f"{formatted_var_name} = {sp.latex(expr)}"
+            equation_latex = f"{formatted_var_name} = {sp.latex(expr.magnitude)} \\, {sp.latex(expr.units)}"
+            #equation_latex = f"{formatted_var_name} = {sp.latex(expr)}"
     else:
         debug_print("Expression is a regular variable.")
         # expr is a regular variable
