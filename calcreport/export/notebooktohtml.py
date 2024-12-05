@@ -1,6 +1,7 @@
 import json
 import re
 from pathlib import Path
+import argparse
 import cmarkgfm
 from cmarkgfm.cmark import Options as cmarkgfmOptions
 from bs4 import BeautifulSoup
@@ -54,6 +55,7 @@ class NotebookToHTML:
         
         # Load template once during initialization
         with open('./templates/report_template.html', 'r') as f:
+            print(f"Loading template file...")
             self.template = f.read()
     
     def extract_structure(self, cells):
@@ -65,7 +67,7 @@ class NotebookToHTML:
         current_numbers = [0] * (self.structure.max_header_level + 1)
         current_category = "body"
 
-        self.debug_print("\nStarting structure extraction:")
+        print("\nExtracting document structure...")
         
         for cell in cells:
             nb_cell = NotebookCell(
@@ -74,7 +76,6 @@ class NotebookToHTML:
                 metadata = cell.get('metadata', {}),
                 output = cell.get('outputs', {})
             )
-            #self.debug_print(f"Cell Metadata: {nb_cell.metadata}")
             if cell['cell_type'] == 'markdown':
                 lines = nb_cell.source.split('\n')
                 for line in lines:
@@ -91,7 +92,6 @@ class NotebookToHTML:
                     elif line.startswith('# Appendix'):
                         nb_cell.category = "appendix"
                         self.structure.appendices.append(nb_cell)
-                        #self.debug_print(f"Appendix metadata: {nb_cell.metadata}")
                         break
                     
                     # Process regular headers
@@ -99,9 +99,6 @@ class NotebookToHTML:
                     if header_match:
                         level = len(header_match.group(1))
                         text = header_match.group(2).strip()
-
-                        self.debug_print(f"\nProcessing header - Level: {level}")
-                        self.debug_print(f"Header text: {text}")
                         
                         # Skip if this is a special section we already handled
                         if any(x in text for x in ['Cover Page', 'Executive Summary', 'Appendix']):
@@ -119,8 +116,6 @@ class NotebookToHTML:
 
                         # Generate section ID (eg s1s2s3)
                         section_id = 's' + 's'.join(str(n) for n in section_numbers)
-                        self.debug_print(f"Generated section number: {section_number}")
-                        self.debug_print(f"Generated ID: {section_id}")
                         # Update cell properties
                         nb_cell.level = level
                         nb_cell.section_number = section_number
@@ -135,14 +130,12 @@ class NotebookToHTML:
                             'category': current_category
                         }
                         self.structure.headers.append(header_info)
-                        self.debug_print(f"Added header to structure: {header_info}")
                         break
                                     
             # Add to appropriate content collection
             if nb_cell.category not in ["cover_page", "executive_summary", "appendix"]:
                 self.structure.body_cells.append(nb_cell)
         
-        self.debug_print("\nFinal header structure:")
         for header in self.structure.headers:
             self.debug_print(f"Level {header['level']}: ({header['text']}) (ID: {header['id']})")
 
@@ -155,7 +148,6 @@ class NotebookToHTML:
         '''
         """
         metadata = self.structure.cover_page.metadata
-        #self.debug_print(f'Metadata type: {type(metadata)}')
         meta_html = ['<div class="running-header">']
         meta_html.append('<div class="header-content">')
         meta_html.append('<div class="header-left">Robert McMahon BEng(Mech), Consultant Engineer')
@@ -178,7 +170,6 @@ class NotebookToHTML:
         meta_html.append('</div>')
         meta_html.append('</div>')
         meta_html.append('</div>')
-        #self.debug_print(f"meta_html: {meta_html}")
 
         return '\n'.join(meta_html) 
 
@@ -263,7 +254,7 @@ class NotebookToHTML:
                     letter = chr(65 + i)
                     toc_html.append(
                         f'<li class="appendix-entry"><a href="#appendix-{letter.lower()}">'
-                        f'<span class="title">Appendix {letter}'
+                        f'<span class="title">Appendix {letter} - {appendix.metadata.get("title", "")}'
                         f'<span class="leaders"></span></span>'
                         f'<span class="pagenumber"></span></a></li>'
                     )
@@ -281,11 +272,8 @@ class NotebookToHTML:
 
             # Process the HTML with BeautifulSoup
             soup = BeautifulSoup(html, 'html.parser')
-            #self.debug_print(f"Cover page HTML: {soup.prettify()}")
             revision_table = soup.find('table')
             
-            #self.debug_print(f"Revision Table: {revision_table}")
-
             metadata = self.structure.cover_page.metadata
             return f'''
             <div class="cover-page">
@@ -326,7 +314,6 @@ class NotebookToHTML:
         def get_appendix_content(appendix, letter):
             """Helper function to process appendix content and metadata"""
             metadata = appendix.metadata
-            #self.debug_print(f"Appendix metadata: {metadata}")
             # Build additional metadata sections
             metadata_sections = []
             if 'title' in metadata:
@@ -350,7 +337,7 @@ class NotebookToHTML:
             metadata_html = '\n'.join(metadata_sections) if metadata_sections else ''
             
             return f'''
-            <div class="appendix-cover no-page-numbers">
+            <div class="appendix-cover">
                 <div class="appendix-content" id="appendix-{letter.lower()}">
                     <div class="appendix-title">Appendix {letter}</div>
                     {metadata_html}
@@ -376,7 +363,6 @@ class NotebookToHTML:
         """
         if figure_refs is None:
             figure_refs = {}
-        #self.debug_print(f"Processing markdown cell: {cell.source}")
         # Get the source content
         source_content = cell.source
         
@@ -395,7 +381,6 @@ class NotebookToHTML:
         
         # Convert markdown to HTML
         html = cmarkgfm.github_flavored_markdown_to_html(source_content, options)
-        self.debug_print(f"Processed markdown HTML: {html}")
         # Process the HTML with BeautifulSoup
         soup = BeautifulSoup(html, 'html.parser')
 
@@ -405,7 +390,6 @@ class NotebookToHTML:
         for tag_level in range(1, 7):
             headers = soup.find_all(f'h{tag_level}')
             if headers:
-                self.debug_print(f"\nProcessing h{tag_level} headers:")
                 for header in headers:
                     original_text = header.text.strip()
                     # Extract section number and text
@@ -413,10 +397,6 @@ class NotebookToHTML:
                     if section_match:
                         section_nums = [int(n) for n in section_match.group(1).split('.')]
                         header_text = section_match.group(3).strip()
-                        
-                        self.debug_print(f"Original header text: '{original_text}'")
-                        self.debug_print(f"Section numbers: {section_nums}")
-                        self.debug_print(f"Cleaned header text: '{header_text}'")
                         
                         # Update current section context
                         if tag_level == 1:
@@ -426,10 +406,7 @@ class NotebookToHTML:
                     
                     
                     # Debug current structure headers
-                    self.debug_print("Looking for match in structure headers:")
                     for h in self.structure.headers:
-                        self.debug_print(f"Comparing with structure header - Level: {h['level']}, Text: '{h['text']}', ID: {h['id']}")
-                        
                         # Extract section numbers from header ID
                         h_section_nums = [int(n) for n in h['id'].lstrip('s').split('s')]
                         
@@ -437,8 +414,6 @@ class NotebookToHTML:
                         if (h['text'] == header_text and 
                             h['level'] == tag_level and 
                             h_section_nums[:tag_level-1] == section_nums[:tag_level-1]):
-                            
-                            self.debug_print(f"Found matching header in structure with correct hierarchy!")
                             header['id'] = h['id']
                             header['class'] = header.get('class', [])
                             if isinstance(header['class'], str):
@@ -473,12 +448,10 @@ class NotebookToHTML:
             
         lines = cell.source.split('\n')
         updated_lines = []
-        #self.debug_print(f"Updating markdown with section numbers for cell {cell.header_id}...")
 
         for line in lines:
             header_match = re.match(r'^(#{1,6})\s+(.+)$', line)
             if header_match:
-                #self.debug_print(f"Line: {line} is a header)")
                 hashes = header_match.group(1)
                 text = header_match.group(2).strip()
                 # Find matching header in our structure
@@ -487,7 +460,6 @@ class NotebookToHTML:
                         header['level'] == len(hashes) and 
                         header['id'] == cell.header_id):
                         line = f"{hashes} {header['section_number']}. {text}"
-                        #self.debug_print(f"Updated line: {line}")
                         break
             updated_lines.append(line)
     
@@ -506,13 +478,11 @@ class NotebookToHTML:
         """
         if figure_refs is None:
             figure_refs = {}
-        #self.debug_print(f"Processing code cell...")
         # Check if this is an image cell
         image_pattern = r"Image\(['\"]([^'\"]+)['\"](?:\s*,\s*metadata\s*=\s*(\{[^}]+\}))?"
         image_match = re.search(image_pattern, cell.source)
 
         if image_match:
-            #self.debug_print("Its an image cell...")
             image_url = image_match.group(1)
             metadata_str = image_match.group(2) if image_match.groups()[1] is not None else "{}"
             
@@ -523,7 +493,6 @@ class NotebookToHTML:
                 fig_num = figure_refs.get(fig_id, '?')
                 
                 # Create figure HTML with explicit number
-                #self.debug_print(f"Creating figure with ID {fig_id} and number {fig_num}")
                 return f'''
                     <figure class="figure" id="fig-{fig_id}" data-label="fig-{fig_id}">
                         <img src="{image_url}" alt="{caption}" />
@@ -531,20 +500,14 @@ class NotebookToHTML:
                     </figure>
                 '''
             except (ValueError, SyntaxError) as e:
-                self.debug_print(f"Error parsing image metadata: {e}")
                 return f'<figure class="figure"><img src="{image_url}" alt="figure" /></figure>'
 
         # Process cell outputs
         if len(cell.output) > 0:
-            #self.debug_print("Cell has outputs...")
-            #self.debug_print(f"Cell output is: {cell.output}")
-            #self.debug_print(f"Cell output type is: {type(cell.output)}")
             outputs = []
                         
             for output in cell.output:
-                
                 if 'text/html' in output['data']:
-                    self.debug_print("Processing maths cell...")
                     html_content = ''.join(output['data']['text/html'])
                     
                     # Clean up MathJax-related content
@@ -618,7 +581,7 @@ class NotebookToHTML:
     def convert_notebook(self, notebook_path: str) -> str:
         """Convert Jupyter notebook to HTML."""
         # Read the notebook file
-        self.debug_print(f"Reading notebook file: {notebook_path}")
+        print(f"Reading notebook file: {notebook_path}")
         with open(notebook_path, 'r', encoding='utf-8') as f:
             notebook = json.load(f)
 
@@ -626,13 +589,11 @@ class NotebookToHTML:
         figure_refs = self.collect_figure_references(notebook['cells']) 
 
         # Extract document structure
-        debug_print("Extracting document structure...")
         self.extract_structure(notebook['cells'])
 
         # Generate document components
         cover_page = self.generate_cover_page()
         header_footer = self.generate_header_footer()
-        #self.debug_print(f"Header and footer: {header_footer}")
         executive_summary = self.generate_executive_summary()
         toc = self.generate_toc_html()
         
@@ -641,7 +602,6 @@ class NotebookToHTML:
         content = []
         cell_counter = 1
         for cell in self.structure.body_cells:
-            #self.debug_print(f"Processing cell {cell_counter}...")
             if cell.cell_type == 'markdown':
                 processed_content = self.process_markdown_cell(cell, figure_refs)
                 content.append(processed_content)
@@ -664,8 +624,7 @@ class NotebookToHTML:
             '\n'.join(content),
             '\n'.join(appendix_pages) if appendix_pages else ''
         ]))
-
-        #self.debug_print(f"Final content: {final_content}")
+        self.debug_print(f"Final content: {final_content}")
         return self._create_html_document(final_content)
 
     def _create_html_document(self, content: str) -> str:
@@ -687,13 +646,20 @@ def convert_notebook_to_html(notebook_path: str, output_path: str):
     
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(html_content)
+        print(f"HTML document saved to: {output_path} \n start a http server with: python -m http.server 8000, then browse to http://localhost:8000/ to view the document")
 
-# Example usage:
-#if __name__ == "__main__":
-convert_notebook_to_html(
-    "/home/rmc/script/Projects/30031-GMS-ENGINESKID/30031-001.ipynb",
-    "/home/rmc/script/Projects/30031-GMS-ENGINESKID/output_report.html",
-    )
+# Main function to handle command-line arguments
+def main():
+    parser = argparse.ArgumentParser(description="Convert a Jupyter notebook to a formatted HTML document.")
+    parser.add_argument("notebook_path", help="Path to the input .ipynb file.")
+    parser.add_argument("output_path", help="Path where the HTML file should be saved.")
+    
+    args = parser.parse_args()
+    
+    convert_notebook_to_html(args.notebook_path, args.output_path)
+
+if __name__ == "__main__":
+    main()
 
 if DEBUG_MODE:
     with open("debug.log", "w") as f:
