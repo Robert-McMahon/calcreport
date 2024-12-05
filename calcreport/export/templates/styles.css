@@ -1,0 +1,540 @@
+/*
+* {
+    font-family: Arial, Helvetica, sans-serif;
+}
+*/
+
+.link::after {
+  content: ", page " target-counter(attr(href url), page);
+}
+
+@page {
+    size: 210mm 297mm;
+    margin-top: 25mm;  
+    margin-bottom: 25mm;
+    margin-left: 15mm;
+    margin-right: 15mm;
+    }
+
+/*||MARKDOWN||*/
+h1 {
+    break-before: page;
+}
+/*
+.markdown-cell {
+    width: 100% !important;
+}
+*/
+
+/*
+.markdown-cell table {
+    table-layout: auto;
+    border-spacing: 0px;
+    font-size: smaller;
+}
+
+.markdown-cell td {
+    break-inside: avoid !important;
+}
+
+.markdown-cell tr {
+    break-inside: avoid !important;
+}
+
+.markdown-cell tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+.markdown-cell tr:hover {
+    background-color: #ddd;
+}
+
+.markdown-cell th {
+    padding-top: 6px;
+    padding-bottom: 6px;
+    background-color: #d29500;
+    color: white;
+    border-spacing: 0px;
+}
+
+.markdown-cell colgroup {
+    display: table-column-group;
+}
+
+.markdown-cell col {
+    display: table-column;
+}
+
+.markdown-cell colgroup col {
+    width: fixed; 
+}
+*/
+
+/*||FIGURES||*/
+
+.figure {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin: 1rem 0;
+    max-width: 100%;
+    display: block; /* Ensure block context */
+    position: relative; /* Create new stacking context */
+}
+
+/* Image styling */
+.figure img {
+    max-width: 100%;
+    width: auto;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+    position: relative; /* Help with stacking context */
+    z-index: 1; /* Ensure image stays above any artifacts */
+}
+
+/* Caption styling */
+.figure figcaption {
+    text-align: center;
+    margin-top: 0.5rem;
+    font-style: italic;
+    position: relative; /* Help with stacking context */
+    z-index: 1;
+}
+
+/* Reference styling */
+.figure-ref {
+    text-decoration: none;
+    color: inherit;
+}
+
+/* Print-specific adjustments*/ 
+@media print {
+    @page {
+        overflow: hidden;
+    }
+    
+    .figure {
+        max-height: 80vh;
+        overflow: visible; 
+        contain: layout; 
+        }
+    
+    .figure img {
+        max-height: 70vh;
+        object-fit: contain;
+    }
+   
+    .markdown-cell {
+        clear: both;
+        position: relative;
+        z-index: 1;
+    }
+}
+
+/* Additional cleanup for potential artifacts*/ 
+* {
+    transform-origin: 0 0; 
+    backface-visibility: hidden; 
+}
+
+/* Ensure clean breaks between major sections */
+h1 {
+    /*break-before: always;
+    page-break-before: always;*/
+    clear: both;
+}
+
+/*||CODE||*/
+.math-group {
+    margin: 0;
+    padding: 0mm 0;
+    display: block;
+    width: 100%;
+}
+
+/*Force new context for math elements*/ 
+.math-group {
+    isolation: isolate;
+    contain: content;
+    }
+
+.math-group {
+    position: relative;
+    z-index: 1;
+    clear: both; 
+    }
+
+.math {
+    margin: 0mm;
+    padding-top: 0mm;
+    display: flex;
+    flex-flow: row wrap;
+    flex: 3;
+    align-items: left;
+    justify-content: space-between;
+    break-inside: avoid;
+    }
+
+.math-equation {
+    font-size: 12pt;
+    overflow:visible;
+    font-stretch: condensed;
+    white-space-collapse: collapse;
+    }
+
+.math-comment {
+    padding-left: 2mm;
+    text-align: right;
+    font-style: italic;
+    font-size: 10pt;
+    white-space: break-spaces;
+    }
+    
+mjx-container {
+    white-space-collapse: collapse;
+    padding: 0;
+    margin: 0;
+    }
+
+/*
+.results-table {
+    padding: 0mm 2mm;
+    table-layout: auto;
+    margin-top: 5mm;
+    width: auto;
+    border-collapse: collapse;
+    border-spacing: 0;
+    font-size: 10pt;
+    }
+*/
+
+/*||TABLE OF CONTENTS||*/
+.toc {
+    margin-bottom: 15mm;
+    }
+
+.toc-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    break-before: page;
+    overflow: hidden;
+}
+
+.toc-list li > a {
+    text-decoration: none;
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    list-style-type: none;
+    color: inherit;
+    text-decoration: none;
+}
+
+.toc-list ol {
+    list-style-type: none;
+}
+
+.toc-list .title {
+    position: relative;
+    list-style-type: none;
+    padding-right: 0.5em;
+}
+/*
+.toc-list .leaders {
+    position: relative;
+    overflow: hidden;
+    clear: none;
+}
+
+.toc-list .leaders::after {
+    content: ". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ";
+    float: left;
+    width: 0;
+    padding-left: 0.5em;
+    letter-spacing: 2px;
+}
+*/
+.toc-list a {
+    position: relative;
+}
+
+.toc-list a::after {
+    content: target-counter(attr(href), page);
+    position: absolute;
+    right: 0;
+    line-height: inherit;
+}
+
+.appendix-entry {
+    margin-top: 1em;
+    font-style: italic;
+    text-decoration: none;
+    list-style-type: none;
+    text-decoration: none; 
+    color: inherit;  
+}
+
+.appendix-entry > a {
+    text-decoration: none !important;
+    color: inherit;
+    list-style-type: none;
+}
+
+.toc-list .appendix-entry a::after {
+    content: none; 
+}
+
+/*||HEADER AND FOOTER||*/
+.header-content {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    width: 100%;
+    padding: 5mm 0;
+    font-size: 9pt;
+    border-bottom: 1pt solid #d29500;
+}
+
+.header-left {
+    text-align: left;
+}
+
+.header-center {
+    text-align: center;
+    font-weight: bold;
+}
+
+.header-right {
+    text-align: right;
+}
+
+.footer-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    padding: 3mm 0;
+    font-size: 8pt;
+    border-top: 1pt solid #d29500;
+}
+
+.footer-left {
+    text-align: left;
+    color: #666666;
+}
+
+.footer-right {
+    text-align: right;
+    font-style: italic;
+    color: #666666;
+}
+
+.page-number::before {
+    content: counter(page);
+}
+
+.page-total::before {
+    content: counter(pages);
+}
+
+.running-header {
+    position: running(header);
+}
+
+.running-footer {
+    position: running(footer);
+}
+
+@page {
+    @top-center {
+        content: element(header);
+    }
+
+    @bottom-center {
+        content: element(footer);
+    }
+}
+
+ /*Content spacing*/ 
+.content {
+    margin-top: 5mm;
+}
+
+/*||COVER PAGE||*/
+
+@page:first {
+    @top-center {
+        content: none !important;
+    }
+    
+    @bottom-center {
+        content: none !important;
+    }
+    @bottom-right {
+        content: none;
+    }
+
+    .running-header {
+        display: none;
+    }
+
+    .running-footer {
+        display: none;
+    }
+}
+.cover-page {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 40mm 25mm;
+}
+
+.cover-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.cover-content > * {
+    break-before: never;
+}
+
+.cover-header {
+    text-align: left;
+    font-size: 14pt;
+}
+
+.cover-main {
+    text-align: center;
+}
+
+.cover-title {
+    font-size: 24pt;
+    margin-bottom: 40mm;
+}
+
+.cover-metadata {
+    text-align: left;
+    margin-top: 20mm;
+}
+
+.metadata-item {
+    margin: 10mm 0;
+    font-size: 12pt;
+}
+
+.metadata-item .label {
+    font-weight: bold;
+    margin-right: 5mm;
+}
+
+.cover-footer {
+    text-align: center;
+    font-size: 14pt;
+    color: #666;
+}
+/*
+.revision-table {
+    table-layout: auto !important;
+    margin-top: 20mm;
+    padding: 2mm 3mm;
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+    font-size: 10pt;
+    text-align: center;
+}
+
+.revision-table th {
+    padding-top : 1mm 2mm;
+    background-color: #d29500;
+    color: white;
+}
+
+.revision-table > table > tbody > tr {
+    border-bottom: 1px solid #000;
+}
+
+.revision-table td {
+    padding: 0mm 2mm;
+}
+*/
+
+/*||TABLES||*/
+
+table {
+    table-layout: auto !important;
+    margin-top: 5mm;
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+    font-size: 10pt;
+    text-align: center;
+}
+
+table th {
+    padding-top : 1mm;
+    padding-bottom: 1mm;
+    background-color: #d29500;
+    color: white;
+}
+
+tr {
+    break-inside: avoid;
+}
+
+td {
+    padding: 0.5mm 1mm;
+}
+
+tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+
+/*||APPENDICES||*/
+.appendix-cover {
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    break-before: always;
+    page: no-numbers;
+}
+
+.appendix-content {
+    text-align: center;
+}
+
+.appendix-title {
+    font-size: 24pt;
+    margin-bottom: 20mm;
+}
+
+.appendix-subtitle {
+    font-size: 18pt;
+    margin-bottom: 10mm;
+}
+
+.appendix-filename {
+    font-size: 12pt;
+    color: #666;
+}
+
+.page-break {
+    break-after: always;
+}
+
+@page no-numbers {
+    @bottom-center {
+        content: none !important;
+    }
+    @top-center {
+        content: none !important;
+    }
+}
+
+.no-page-numbers {
+    page: no-numbers;
+}

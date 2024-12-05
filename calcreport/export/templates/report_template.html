@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>title</title>
+        
+        <!-- Styles -->
+        <link rel="stylesheet" href="templates/styles.css">
+        
+        <!-- Load configurations -->
+        <script src="templates/js/mathjax-config.js"></script>
+        <script>
+            window.PagedConfig = {{
+                auto: false
+            }};
+        </script>
+
+        <!-- Load libraries -->
+        <script async src="https://cdn.jsdelivr.net/npm/mathjax@4.0.0-beta.7/tex-mml-chtml.js" id="MathJax-script"></script>
+        <script src="templates/js/paged.polyfill.js"></script>
+        <!-- <script src="/scripts/paged-js-repeat-table-header.js"></script> -->
+    </head>
+    <body>
+        <div class="content">
+            {content}
+        </div>
+        <div class="page-break"></div>
+    </body>
+</html>

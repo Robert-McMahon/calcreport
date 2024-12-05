@@ -1,0 +1,2 @@
+include calcreport/export/templates/*
+include calcreport/export/templates/js/*
