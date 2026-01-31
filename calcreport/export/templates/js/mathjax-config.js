@@ -14,10 +14,19 @@ window.MathJax = {
         exFactor: 0.5
     },
     menuSettings: {
-        zoom: 'Click',
         ALT: true,
         CMD: true,
         CTRL: true
+    },
+    output: {
+        font: 'mathjax-stix2',
+        displayOverflow: 'linebreak',
+        linebreaks: {
+            inline: true,
+            width: '100%',
+            lineleading: .4,
+            LinebreakVisitor: null
+        }
     },
     startup: {
         ready: () => {
@@ -45,4 +54,4 @@ window.MathJax = {
             });
         }
     }
-};
+}

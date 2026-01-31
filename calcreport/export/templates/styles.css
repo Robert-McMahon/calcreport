@@ -75,7 +75,9 @@ h1 {
     backface-visibility: hidden; 
 }
 
-/*||CODE||*/
+/*||CODE||
+
+
 .math-group {
     margin: 0;
     padding: 0mm 0;
@@ -93,7 +95,7 @@ h1 {
     z-index: 1;
     clear: both; 
     }
-
+*/
 .math {
     margin: 0mm;
     padding-top: 0mm;
@@ -113,6 +115,7 @@ h1 {
     }
 
 .math-comment {
+    flex: auto;
     padding-left: 2mm;
     text-align: right;
     font-style: italic;
