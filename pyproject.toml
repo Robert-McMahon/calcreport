@@ -11,7 +11,6 @@ dependencies = [
     'numpy',
     'IPython'
 ]
-tool.uv.package = true
 
 [project.scripts]
 notebooktohtml = "calcreport.export.notebooktohtml:main"
