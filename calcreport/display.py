@@ -17,7 +17,20 @@ def capture_var_name(func):
     #Capture the variable name of the first argument passed to the function
     def wrapper(*args, **kwargs):
         frame = inspect.currentframe().f_back
-        var_name = [name for name, val in frame.f_locals.items() if val is args[0]][0]
+        try:
+            matches = [name for name, val in frame.f_locals.items() if val is args[0]]
+        finally:
+            del frame  # avoid reference cycle via the caller's frame
+        if not matches:
+            raise ValueError(
+                f"{func.__name__} could not determine a variable name for its "
+                f"argument (type {type(args[0]).__name__}) - assign the value "
+                f"to a variable first, e.g. 'F = m * g' then displaymath(F)."
+            )
+        # On multiple identity matches (e.g. two variables holding the same
+        # interned int) prefer the most recently defined one, which is the
+        # variable the caller most likely just assigned.
+        var_name = matches[-1]
         debug_print(f"Captured variable name: {var_name}")
         return func(var_name, *args, **kwargs)
     return wrapper

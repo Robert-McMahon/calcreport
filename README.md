@@ -20,6 +20,40 @@ notebooktohtml report.ipynb report.html --standalone   # single self-contained f
 `--pdf` needs a one-time `playwright install chromium`. A project-local
 `templates/report_template.html` overrides the bundled template.
 
+## Writing calculations
+
+State inputs with `displaymath`, then use `equation()` to render a
+calculation symbolically from the same expression that computes it — the
+formula in the report can never drift from the code:
+
+```python
+m_engine = Q_(3448, u.kg)
+displaymath(m_engine, comment='Mass of the engine')          # m_engine = 3448 kg
+
+F = equation('F = m_engine * g', to=u.kN,
+             comment='Engine weight')                        # F = m_engine · g
+                                                             # F = 33.82 kN
+d = equation('d = sqrt(4 * A_bolt / pi)', to=u.mm)           # proper radical + π
+```
+
+`equation()` evaluates against your variables (pint quantities, sympy,
+numbers) and returns the result. Common functions (`sqrt`, `sin`, `log`,
+`min`, ...) and constants (`pi`, `e`) are available without imports;
+`.to(...)` inside an expression is treated as unit bookkeeping and left out
+of the symbolic form. Results display at 4 significant figures by default
+(`digits=` to change, `digits=None` for full precision); the returned value
+always keeps full precision. `show_result=False` renders the formula only,
+`evaluate=False` makes it display-only.
+
+Greek symbols: use real Unicode characters in variable names (`σ_max`,
+`Δp`, `θ_x`) — they are valid Python identifiers and render directly. A
+VS Code extension that completes `\sigma` → `σ` makes typing painless.
+Spelled-out names (`sigma_max`, `SigmaF`) also work, matched on whole name
+segments so words like `pitch` are never mangled. Avoid the Unicode
+"mathematical alphanumeric" letters (𝑚, 𝐹) and sub/superscript characters
+(F₁, Fₐ): Python folds them into plain ASCII identifiers, so visually
+distinct names silently collide.
+
 ## Authoring in marimo
 
 Reports can be authored in [marimo](https://marimo.io) instead of Jupyter
