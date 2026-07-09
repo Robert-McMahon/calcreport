@@ -658,7 +658,8 @@ class NotebookToHTML:
         """Create the HTML document using the template."""
         return self.template.format(content=content)
 
-def convert_notebook_to_html(notebook_path: str, output_path: str, template_path: str = None):
+def convert_notebook_to_html(notebook_path: str, output_path: str, template_path: str = None,
+                             standalone: bool = False):
     """
     Convert a Jupyter notebook to a formatted HTML document.
 
@@ -666,14 +667,32 @@ def convert_notebook_to_html(notebook_path: str, output_path: str, template_path
         notebook_path: Path to the input .ipynb file.
         output_path: Path where the HTML file should be saved.
         template_path: Optional path to a report template HTML file.
+        standalone: Inline local CSS/JS and base64-encode images so the
+            output is a single portable file (MathJax still loads from CDN).
     """
     converter = NotebookToHTML(template_path=template_path)
 
     html_content = converter.convert_notebook(notebook_path)
-    html_content = BeautifulSoup(html_content, 'html.parser').prettify()
+    soup = BeautifulSoup(html_content, 'html.parser')
+
+    if standalone:
+        from .standalone import inline_assets
+        search_dirs = [Path(output_path).resolve().parent,
+                       Path.cwd(),
+                       Path(notebook_path).resolve().parent]
+        if template_path:
+            # Template hrefs like templates/styles.css are relative to the
+            # directory the templates/ folder sits in.
+            search_dirs.append(Path(template_path).resolve().parent.parent)
+        inline_assets(soup, search_dirs)
+
+    html_content = soup.prettify()
 
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(html_content)
+    if standalone:
+        print(f"Standalone HTML document saved to: {output_path}")
+    else:
         print(f"HTML document saved to: {output_path} \n start a http server with: python -m http.server 8000, then browse to http://localhost:8000/ to view the document")
 
 # Main function to handle command-line arguments
@@ -684,6 +703,10 @@ def main():
     parser.add_argument("output_path", help="Path where the HTML file should be saved.")
     parser.add_argument("--template", help="Path to a report template HTML file (default: ./templates/report_template.html if present, else the bundled template).")
     parser.add_argument("--debug", action="store_true", help="Print debug output and write it to debug.log.")
+    parser.add_argument("--standalone", action="store_true",
+                        help="Produce a single self-contained HTML file: inline the template "
+                             "CSS/JS and embed images as base64 data URIs. The result can be "
+                             "opened directly (file://) or emailed; MathJax still loads from CDN.")
     parser.add_argument("--pdf", nargs="?", const="AUTO", default=None, metavar="PDF_PATH",
                         help="Also render the report to PDF via headless Chromium. "
                              "Optionally give the PDF path (default: output path with .pdf extension). "
@@ -694,7 +717,8 @@ def main():
     if args.debug:
         DEBUG_MODE = True
 
-    convert_notebook_to_html(args.notebook_path, args.output_path, template_path=args.template)
+    convert_notebook_to_html(args.notebook_path, args.output_path, template_path=args.template,
+                             standalone=args.standalone)
 
     if args.pdf:
         from .htmltopdf import html_to_pdf
