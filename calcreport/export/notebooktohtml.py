@@ -684,6 +684,10 @@ def main():
     parser.add_argument("output_path", help="Path where the HTML file should be saved.")
     parser.add_argument("--template", help="Path to a report template HTML file (default: ./templates/report_template.html if present, else the bundled template).")
     parser.add_argument("--debug", action="store_true", help="Print debug output and write it to debug.log.")
+    parser.add_argument("--pdf", nargs="?", const="AUTO", default=None, metavar="PDF_PATH",
+                        help="Also render the report to PDF via headless Chromium. "
+                             "Optionally give the PDF path (default: output path with .pdf extension). "
+                             "The HTML must be written next to its templates/ and images/ folders.")
 
     args = parser.parse_args()
 
@@ -691,6 +695,11 @@ def main():
         DEBUG_MODE = True
 
     convert_notebook_to_html(args.notebook_path, args.output_path, template_path=args.template)
+
+    if args.pdf:
+        from .htmltopdf import html_to_pdf
+        pdf_path = str(Path(args.output_path).with_suffix('.pdf')) if args.pdf == "AUTO" else args.pdf
+        html_to_pdf(args.output_path, pdf_path)
 
     if args.debug:
         with open("debug.log", "w") as f:
