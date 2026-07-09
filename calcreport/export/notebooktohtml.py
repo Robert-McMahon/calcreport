@@ -1,6 +1,7 @@
 import json
 import re
 from pathlib import Path
+from importlib import resources
 import argparse
 import cmarkgfm
 from cmarkgfm.cmark import Options as cmarkgfmOptions
@@ -14,13 +15,12 @@ python -m http.server 8000
 
 options = (cmarkgfmOptions.CMARK_OPT_UNSAFE)
 
-DEBUG_MODE = True
-if DEBUG_MODE:
-    debug_log = []
+DEBUG_MODE = False
+debug_log = []
 
 def debug_print(*args, **kwargs):
     if DEBUG_MODE:
-        debug_log.append(*args, *kwargs)
+        debug_log.append(' '.join(str(a) for a in args))
         print(*args, **kwargs)
 
 class NotebookCell:
@@ -49,14 +49,30 @@ class DocumentStructure:
         return '.'.join(str(n) for n in current_numbers if n > 0)
 
 class NotebookToHTML:
-    def __init__(self):
+    def __init__(self, template_path=None):
         self.debug_mode = DEBUG_MODE
         self.structure = DocumentStructure()
-        
-        # Load template once during initialization
-        with open('./templates/report_template.html', 'r') as f:
-            print(f"Loading template file...")
-            self.template = f.read()
+        self.template = self._load_template(template_path)
+
+    def _load_template(self, template_path=None):
+        """Load the report template.
+
+        Resolution order: explicit path argument, then a project-local
+        ./templates/report_template.html (allows per-project overrides),
+        then the template bundled with the package.
+        """
+        if template_path is not None:
+            print(f"Loading template file: {template_path}")
+            return Path(template_path).read_text(encoding='utf-8')
+
+        local_template = Path('./templates/report_template.html')
+        if local_template.exists():
+            print(f"Loading project template: {local_template}")
+            return local_template.read_text(encoding='utf-8')
+
+        packaged = resources.files('calcreport.export').joinpath('templates/report_template.html')
+        print("Loading bundled template (no ./templates/report_template.html found)")
+        return packaged.read_text(encoding='utf-8')
     
     def extract_structure(self, cells):
         """
@@ -505,22 +521,33 @@ class NotebookToHTML:
         # Process cell outputs
         if len(cell.output) > 0:
             outputs = []
-                        
+
             for output in cell.output:
-                if 'text/html' in output['data']:
-                    html_content = ''.join(output['data']['text/html'])
-                    
+                # Stream outputs (print statements) and errors have no 'data' key
+                data = output.get('data', {})
+                if 'text/html' in data:
+                    html_content = ''.join(data['text/html'])
+
                     # Clean up MathJax-related content
                     html_content = self.clean_mathjax_content(html_content)
-                    
+
                     # Add to outputs if content remains after cleaning
                     if html_content.strip():
                         outputs.append(html_content)
-            
+
+                elif 'image/png' in data:
+                    # Generated images (e.g. matplotlib charts) are embedded
+                    # in the notebook as base64 - inline them as data URIs
+                    png_b64 = ''.join(data['image/png']).strip()
+                    outputs.append(
+                        f'<img class="cell-image" alt="chart" '
+                        f'src="data:image/png;base64,{png_b64}" />'
+                    )
+
             if outputs:
                 return self.wrap_code_output('\n'.join(outputs))
-        
-        return 
+
+        return
     
     def clean_mathjax_content(self, html_content: str) -> str:
         """
@@ -576,7 +603,7 @@ class NotebookToHTML:
         """
         if hasattr(self, 'debug_mode') and self.debug_mode:
             print(*args, **kwargs)
-            debug_log.append(*args, *kwargs)
+            debug_log.append(' '.join(str(a) for a in args))
 
     def convert_notebook(self, notebook_path: str) -> str:
         """Convert Jupyter notebook to HTML."""
@@ -631,37 +658,44 @@ class NotebookToHTML:
         """Create the HTML document using the template."""
         return self.template.format(content=content)
 
-def convert_notebook_to_html(notebook_path: str, output_path: str):
+def convert_notebook_to_html(notebook_path: str, output_path: str, template_path: str = None):
     """
     Convert a Jupyter notebook to a formatted HTML document.
-    
+
     Args:
         notebook_path: Path to the input .ipynb file.
         output_path: Path where the HTML file should be saved.
+        template_path: Optional path to a report template HTML file.
     """
-    converter = NotebookToHTML()
-    
+    converter = NotebookToHTML(template_path=template_path)
+
     html_content = converter.convert_notebook(notebook_path)
     html_content = BeautifulSoup(html_content, 'html.parser').prettify()
-    
+
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(html_content)
         print(f"HTML document saved to: {output_path} \n start a http server with: python -m http.server 8000, then browse to http://localhost:8000/ to view the document")
 
 # Main function to handle command-line arguments
 def main():
+    global DEBUG_MODE
     parser = argparse.ArgumentParser(description="Convert a Jupyter notebook to a formatted HTML document.")
     parser.add_argument("notebook_path", help="Path to the input .ipynb file.")
     parser.add_argument("output_path", help="Path where the HTML file should be saved.")
-    
+    parser.add_argument("--template", help="Path to a report template HTML file (default: ./templates/report_template.html if present, else the bundled template).")
+    parser.add_argument("--debug", action="store_true", help="Print debug output and write it to debug.log.")
+
     args = parser.parse_args()
-    
-    convert_notebook_to_html(args.notebook_path, args.output_path)
+
+    if args.debug:
+        DEBUG_MODE = True
+
+    convert_notebook_to_html(args.notebook_path, args.output_path, template_path=args.template)
+
+    if args.debug:
+        with open("debug.log", "w") as f:
+            for item in debug_log:
+                f.write(f"{item}\n")
 
 if __name__ == "__main__":
     main()
-
-if DEBUG_MODE:
-    with open("debug.log", "w") as f:
-        for item in debug_log:
-            f.write(f"{item}\n")
