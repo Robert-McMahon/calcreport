@@ -11,3 +11,12 @@ dependencies = [
     'numpy',
     'IPython'
 ]
+tool.uv.package = true
+
+[project.scripts]
+notebooktohtml = "calcreport.export.notebooktohtml:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
