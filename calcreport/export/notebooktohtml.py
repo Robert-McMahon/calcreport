@@ -666,6 +666,11 @@ class NotebookToHTML:
                     html_content = unwrap_marimo_container(html_content)
                     html_content = self.clean_mathjax_content(html_content)
 
+                    # Strip the notebook-preview math sizing so the report
+                    # stylesheet controls equation typography
+                    html_content = html_content.replace(
+                        'font-size:1.2em;line-height:normal;', '')
+
                     # Fill equation/table numbers and resolve @refs (so
                     # comments can say 'per @eq:weight' or 'see @fig:mesh')
                     html_content = self.inject_reference_numbers(html_content)

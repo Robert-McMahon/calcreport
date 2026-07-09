@@ -124,10 +124,16 @@ def latex_to_mathml(latex_source):
     # latex2mathml emits capital Greek as entities &#x00391;-&#x003A9;.
     mathml = re.sub(r'<mi>(&#x0039[1-9A-F];|&#x003A[0-9];|[Α-Ω])</mi>',
                     r'<mi mathvariant="normal">\1</mi>', mathml)
-    # Left-align within the flex layout instead of MathML's default centring
+    # font-size/line-height: notebook hosts (VS Code, marimo) render text
+    # at ~13px with a fixed line-height that shrinks math and squashes
+    # matrix rows; 'normal' restores row spacing. The exporter strips this
+    # preview sizing so the report stylesheet keeps control of typography.
+    # text-align/margin: left-align within the flex layout instead of
+    # MathML's default centring.
     return mathml.replace(
         '<math ',
-        f'<math style="text-align:left;margin:0" '
+        f'<math style="font-size:1.2em;line-height:normal;'
+        f'text-align:left;margin:0" '
         f'data-latex="{html_module.escape(latex_source, quote=True)}" ',
         1)
 
