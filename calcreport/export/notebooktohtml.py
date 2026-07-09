@@ -93,6 +93,10 @@ class NotebookToHTML:
         self.debug_mode = DEBUG_MODE
         self.structure = DocumentStructure()
         self.template = self._load_template(template_path)
+        self.figure_refs = {}   # figure id -> number
+        self.eq_refs = {}       # equation id -> number
+        self.tbl_refs = {}      # table id -> number
+        self.sec_refs = {}      # section id -> {'number': '1.2', 'anchor': 's1s2'}
 
     def _load_template(self, template_path=None):
         """Load the report template.
@@ -169,11 +173,21 @@ class NotebookToHTML:
                     if header_match:
                         level = len(header_match.group(1))
                         text = header_match.group(2).strip()
-                        
+
                         # Skip if this is a special section we already handled
                         if any(x in text for x in ['Cover Page', 'Executive Summary', 'Appendix']):
                             continue
-                        
+
+                        # A '{#sec:id}' suffix makes the section referenceable
+                        # via '@sec:id'; strip it from the displayed text.
+                        sec_tag = re.search(r'\s*\{#sec:([A-Za-z0-9_-]+)\}\s*$', text)
+                        sec_ref_id = None
+                        if sec_tag:
+                            sec_ref_id = sec_tag.group(1)
+                            text = text[:sec_tag.start()].strip()
+                            nb_cell.source = nb_cell.source.replace(
+                                line, f"{header_match.group(1)} {text}")
+
                         # Update section numbers
                         current_numbers[level] += 1
                         # Reset all deeper levels
@@ -200,6 +214,11 @@ class NotebookToHTML:
                             'category': current_category
                         }
                         self.structure.headers.append(header_info)
+                        if sec_ref_id:
+                            self.sec_refs[sec_ref_id] = {
+                                'number': section_number,
+                                'anchor': section_id,
+                            }
                         break
                                     
             # Add to appropriate content collection
@@ -273,6 +292,60 @@ class NotebookToHTML:
                     except (ValueError, SyntaxError) as e:
                         self.debug_print(f"Error parsing figure metadata: {e}")
         return figure_refs
+
+    def collect_output_references(self, cells):
+        """Assign document-order numbers to referenceable equations and tables.
+
+        equation(id=...) and create_results_table(table_id=...) leave
+        data-eq-id / data-tbl-id placeholders in their output HTML; numbering
+        happens here rather than at execution time because marimo executes
+        cells in dependency order, not document order.
+        """
+        for cell in cells:
+            if cell['cell_type'] != 'code':
+                continue
+            for output in cell.get('outputs', []):
+                html = ''.join(output.get('data', {}).get('text/html', ''))
+                for eq_id in re.findall(r'data-eq-id="([^"]+)"', html):
+                    if eq_id not in self.eq_refs:
+                        self.eq_refs[eq_id] = len(self.eq_refs) + 1
+                for tbl_id in re.findall(r'data-tbl-id="([^"]+)"', html):
+                    if tbl_id not in self.tbl_refs:
+                        self.tbl_refs[tbl_id] = len(self.tbl_refs) + 1
+
+    def resolve_cross_references(self, text: str) -> str:
+        """Replace @fig/@eq/@tbl/@sec references with numbered links."""
+        def replace(match):
+            kind, ref_id = match.groups()
+            if kind == 'fig' and ref_id in self.figure_refs:
+                return (f'<a href="#fig-{ref_id}" class="figure-ref">'
+                        f'Figure {self.figure_refs[ref_id]}</a>')
+            if kind == 'eq' and ref_id in self.eq_refs:
+                return (f'<a href="#eq-{ref_id}" class="equation-ref">'
+                        f'Equation ({self.eq_refs[ref_id]})</a>')
+            if kind == 'tbl' and ref_id in self.tbl_refs:
+                return (f'<a href="#tbl-{ref_id}" class="table-ref">'
+                        f'Table {self.tbl_refs[ref_id]}</a>')
+            if kind == 'sec' and ref_id in self.sec_refs:
+                sec = self.sec_refs[ref_id]
+                return (f'<a href="#{sec["anchor"]}" class="section-ref">'
+                        f'Section {sec["number"]}</a>')
+            print(f"Warning: unresolved cross-reference '@{kind}:{ref_id}'")
+            return match.group(0)
+
+        return re.sub(r'@(fig|eq|tbl|sec):([A-Za-z0-9_-]+)', replace, text)
+
+    def inject_reference_numbers(self, html_content: str) -> str:
+        """Fill the empty number placeholders left by equation()/tables."""
+        html_content = re.sub(
+            r'(<span class="eq-number" data-eq-id="([^"]+)">)(</span>)',
+            lambda m: f'{m.group(1)}({self.eq_refs.get(m.group(2), "?")}){m.group(3)}',
+            html_content)
+        html_content = re.sub(
+            r'(<span class="tbl-number" data-tbl-id="([^"]+)">)(</span>)',
+            lambda m: f'{m.group(1)}{self.tbl_refs.get(m.group(2), "?")}{m.group(3)}',
+            html_content)
+        return html_content
 
     def generate_toc_html(self):
             """Generate HTML for table of contents with support for multiple header levels."""
@@ -435,11 +508,15 @@ class NotebookToHTML:
             figure_refs = {}
         # Get the source content
         source_content = cell.source
-        
-        # Replace figure references with links
+
+        # Replace @fig/@eq/@tbl/@sec references with links
+        source_content = self.resolve_cross_references(source_content)
+
+        # Replace legacy [id] figure references with links. The (?!\() guard
+        # keeps markdown links whose text happens to be a figure id intact.
         source_content = re.sub(
-            r'\[([^\]]+)\]',
-            lambda m: f'<a href="#fig-{m.group(1)}" data-ref="fig-{m.group(1)}" class="figure-ref">Figure {figure_refs.get(m.group(1), "?")}</a>' 
+            r'\[([^\]]+)\](?!\()',
+            lambda m: f'<a href="#fig-{m.group(1)}" data-ref="fig-{m.group(1)}" class="figure-ref">Figure {figure_refs.get(m.group(1), "?")}</a>'
             if m.group(1) in figure_refs else m.group(0),
             source_content
         )
@@ -589,6 +666,11 @@ class NotebookToHTML:
                     html_content = unwrap_marimo_container(html_content)
                     html_content = self.clean_mathjax_content(html_content)
 
+                    # Fill equation/table numbers and resolve @refs (so
+                    # comments can say 'per @eq:weight' or 'see @fig:mesh')
+                    html_content = self.inject_reference_numbers(html_content)
+                    html_content = self.resolve_cross_references(html_content)
+
                     # Add to outputs if content remains after cleaning
                     if html_content.strip():
                         outputs.append(html_content)
@@ -671,9 +753,13 @@ class NotebookToHTML:
             notebook = json.load(f)
 
         # First pass: collect all figure IDs and assign numbers
-        figure_refs = self.collect_figure_references(notebook['cells']) 
+        figure_refs = self.collect_figure_references(notebook['cells'])
+        self.figure_refs = figure_refs
 
-        # Extract document structure
+        # Assign document-order numbers to equations and tables
+        self.collect_output_references(notebook['cells'])
+
+        # Extract document structure (also registers {#sec:id} references)
         self.extract_structure(notebook['cells'])
 
         # Generate document components

@@ -54,6 +54,33 @@ segments so words like `pitch` are never mangled. Avoid the Unicode
 (F₁, Fₐ): Python folds them into plain ASCII identifiers, so visually
 distinct names silently collide.
 
+## Cross-references
+
+Give things an id, then reference them anywhere — in markdown or in
+equation comments — with `@fig:` / `@eq:` / `@tbl:` / `@sec:`. Numbers are
+assigned in document order at export time and render as links:
+
+```python
+F = equation('F = m * g', id='weight')                  # numbered: ... (1)
+create_results_table(sol, table_id='res', caption='Mount reactions')
+Image('images/mesh.png', metadata={'ID': 'mesh', 'caption': 'FE mesh'})
+```
+
+```markdown
+## Design Loads {#sec:loads}
+
+Per @eq:weight, the reactions in @tbl:res follow from the loads in
+@sec:loads; the model is shown in @fig:mesh.
+```
+
+renders as "Per Equation (1), the reactions in Table 1 follow from the
+loads in Section 1.1; the model is shown in Figure 1." Unresolved
+references are left literal with a console warning. The legacy `[id]`
+figure syntax still works (and no longer interferes with markdown links).
+Note: projects with a customized local `templates/styles.css` need the
+`.eq-number` / `.table-block` styles from the bundled stylesheet for
+numbers and captions to display nicely.
+
 ## Authoring in marimo
 
 Reports can be authored in [marimo](https://marimo.io) instead of Jupyter

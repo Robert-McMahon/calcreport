@@ -213,7 +213,7 @@ def value_to_latex(value, digits=None):
 
 
 def equation(expr: str, comment: str = '', to=None, show_result: bool = True,
-             evaluate: bool = True, digits: int = 4, **style):
+             evaluate: bool = True, digits: int = 4, id: str = None, **style):
     """Render a calculation symbolically, evaluate it, and return the result.
 
     Args:
@@ -228,6 +228,8 @@ def equation(expr: str, comment: str = '', to=None, show_result: bool = True,
             With evaluate=False the equation is display-only (returns None).
         digits: Significant figures for the displayed result (display only -
             the returned value keeps full precision). None = full precision.
+        id: Reference id. The symbolic line is numbered by the exporter and
+            '@eq:<id>' anywhere in the report becomes a link 'Equation (N)'.
         **style: Passed through to render_content (equation_size etc.).
 
     Returns:
@@ -261,7 +263,7 @@ def equation(expr: str, comment: str = '', to=None, show_result: bool = True,
         rhs_latex = _to_latex(rhs_node)
         lhs_latex = format_var_name(name) if name else None
         symbolic = f"{lhs_latex} = {rhs_latex}" if name else rhs_latex
-        render_content(symbolic, comment=comment, **style)
+        render_content(symbolic, comment=comment, eq_id=id, **style)
 
         if not evaluate:
             return None

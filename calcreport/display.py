@@ -101,19 +101,29 @@ def displaymath(var_name, expr, comment='', comment_size="small", equation_size=
     debug_print(f"Generated LaTeX: {equation_latex}")
     render_content(equation_latex, comment=comment, content_type='latex', equation_size=equation_size, comment_size=comment_size, line_height=line_height, comment_width=comment_width)
 
-def render_content(content, comment='', content_type='latex', equation_size='small', 
-                  comment_size='small', line_height='1.2', comment_width='50%'):
-    """Render LaTeX equations or HTML content with optional comments."""
+def render_content(content, comment='', content_type='latex', equation_size='small',
+                  comment_size='small', line_height='1.2', comment_width='50%',
+                  eq_id=None):
+    """Render LaTeX equations or HTML content with optional comments.
+
+    eq_id makes the equation referenceable: the block gets the anchor
+    'eq-<eq_id>' and an equation-number placeholder that the exporter fills
+    in document order ('@eq:<eq_id>' elsewhere becomes 'Equation (N)').
+    """
     content_html = rf"\[ {content} \]" if content_type == 'latex' else content
+    anchor = f' id="eq-{eq_id}"' if eq_id else ''
+    number = (f'<span class="eq-number" data-eq-id="{eq_id}"></span>'
+              if eq_id else '')
     html_code = f"""
     <script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-MML-AM_CHTML"></script>
     <script type="text/javascript">
          MathJax.Hub.Queue(["Typeset", MathJax.Hub]);
     </script>
-    <div class="math">
+    <div class="math"{anchor}>
         <div class="math-equation">
          {content_html}
         </div>
+        {number}
         <div class="math-comment">
          {comment}
         </div>
@@ -121,12 +131,19 @@ def render_content(content, comment='', content_type='latex', equation_size='sma
     """
     display(HTML(html_code))
 
-def create_results_table(*solutions, case_names=None, custom_classes="results-table"):
-    """Create an HTML table from multiple solution dictionaries."""
+def create_results_table(*solutions, case_names=None, custom_classes="results-table",
+                         table_id=None, caption=''):
+    """Create an HTML table from multiple solution dictionaries.
+
+    table_id makes the table referenceable: the block gets the anchor
+    'tbl-<table_id>' and a caption 'Table N: <caption>' whose number the
+    exporter fills in document order ('@tbl:<table_id>' elsewhere becomes
+    'Table N').
+    """
 
     if case_names is None:
         case_names = [f"Case {i+1}" for i in range(len(solutions))]
-    
+
     data = []
     for sol, case in zip(solutions, case_names):
         row = {'Load Case': case}
@@ -135,10 +152,20 @@ def create_results_table(*solutions, case_names=None, custom_classes="results-ta
             value = Q_(value, u.kN)
             row[str(key)] = f"{value:.2f~P}"
         data.append(row)
-    
+
     df = pd.DataFrame(data)
     styled_table = df.style.hide(axis='index')
     html_table = styled_table.to_html(table_id="results_table")
     html_table = html_table.replace(r"<table", f'<table class={custom_classes}')
-    
+
+    if table_id:
+        caption_text = f": {caption}" if caption else ""
+        html_table = (
+            f'<div class="table-block" id="tbl-{table_id}">'
+            f'<div class="table-caption">Table '
+            f'<span class="tbl-number" data-tbl-id="{table_id}"></span>'
+            f'{caption_text}</div>'
+            f'{html_table}</div>'
+        )
+
     return HTML(html_table)
