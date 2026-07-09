@@ -10,7 +10,8 @@ dependencies = [
     'pandas',
     'numpy',
     'IPython',
-    'cmarkgfm'
+    'cmarkgfm',
+    'beautifulsoup4'
 ]
 
 [project.scripts]
