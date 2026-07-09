@@ -12,11 +12,18 @@ dependencies = [
     'IPython',
     'cmarkgfm',
     'beautifulsoup4',
-    'playwright'
+    'playwright',
+    'jinja2'
 ]
 
 [project.scripts]
 notebooktohtml = "calcreport.export.notebooktohtml:main"
+
+[project.optional-dependencies]
+marimo = [
+    "marimo>=0.23.13",
+    "nbformat>=5.10.4",
+]
 
 [build-system]
 requires = ["hatchling"]

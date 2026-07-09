@@ -23,6 +23,46 @@ def debug_print(*args, **kwargs):
         debug_log.append(' '.join(str(a) for a in args))
         print(*args, **kwargs)
 
+# Metadata keys recognised in cover page / appendix markdown source lines
+# (marimo notebooks have no per-cell metadata, so `key: value` lines in the
+# cell body are the marimo equivalent of Jupyter cell metadata).
+INLINE_METADATA_KEYS = {'title', 'client', 'project', 'docid', 'revision',
+                        'filename', 'date', 'author'}
+
+
+def extract_inline_metadata(source: str):
+    """Pull `key: value` metadata lines out of markdown source.
+
+    Returns (metadata dict, source with those lines removed). Only lines
+    whose key is in INLINE_METADATA_KEYS are treated as metadata.
+    """
+    metadata, kept = {}, []
+    for line in source.split('\n'):
+        m = re.match(r'^([A-Za-z_]+):\s*(.+?)\s*$', line)
+        if m and m.group(1).lower() in INLINE_METADATA_KEYS:
+            metadata[m.group(1).lower()] = m.group(2)
+        else:
+            kept.append(line)
+    return metadata, '\n'.join(kept)
+
+
+def unwrap_marimo_container(html_content: str) -> str:
+    """Remove the flex-layout div marimo wraps around cell outputs.
+
+    `marimo export ipynb` consolidates a cell's displayed outputs inside
+    <div style='display: flex;...flex-direction: column;...'>. The flex
+    styling interferes with paged.js fragmentation, so unwrap it and keep
+    the children.
+    """
+    soup = BeautifulSoup(html_content, 'html.parser')
+    top = [el for el in soup.contents if getattr(el, 'name', None)]
+    if (len(top) == 1 and top[0].name == 'div' and not top[0].get('class')
+            and 'display: flex' in (top[0].get('style') or '')
+            and 'flex-direction: column' in (top[0].get('style') or '')):
+        return ''.join(str(child) for child in top[0].contents)
+    return html_content
+
+
 class NotebookCell:
     def __init__(self, cell_type, source, output, metadata=None, level=None, section_number=None, header_id=None):
         self.cell_type = cell_type  # markdown, code
@@ -74,6 +114,18 @@ class NotebookToHTML:
         print("Loading bundled template (no ./templates/report_template.html found)")
         return packaged.read_text(encoding='utf-8')
     
+    def _apply_inline_metadata(self, nb_cell):
+        """Merge `key: value` lines from the cell source into its metadata.
+
+        Jupyter cell metadata wins over inline source metadata, so existing
+        notebooks are unaffected; marimo notebooks (which have no per-cell
+        metadata) supply title/client/docid/etc. as lines in the cell body.
+        """
+        inline_meta, stripped_source = extract_inline_metadata(nb_cell.source)
+        if inline_meta:
+            nb_cell.metadata = {**inline_meta, **nb_cell.metadata}
+            nb_cell.source = stripped_source
+
     def extract_structure(self, cells):
         """
         Extract and categorize document structure from notebook cells.
@@ -98,8 +150,9 @@ class NotebookToHTML:
                     # Process special sections first
                     if line.startswith('# Cover Page'):
                         nb_cell.category = "cover_page"
+                        self._apply_inline_metadata(nb_cell)
                         self.structure.cover_page = nb_cell
-                        
+
                     elif line.startswith('# Executive Summary'):
                         nb_cell.category = "executive_summary"
                         self.structure.executive_summary = nb_cell
@@ -107,6 +160,7 @@ class NotebookToHTML:
                         
                     elif line.startswith('# Appendix'):
                         nb_cell.category = "appendix"
+                        self._apply_inline_metadata(nb_cell)
                         self.structure.appendices.append(nb_cell)
                         break
                     
@@ -392,8 +446,7 @@ class NotebookToHTML:
         
         # Update headers with section numbers if this is a header cell
         if cell.level is not None and cell.section_number:
-
-            source_content = self.update_markdown_with_section_numbers(cell)
+            source_content = self.update_markdown_with_section_numbers(cell, source_content)
         
         # Convert markdown to HTML
         html = cmarkgfm.github_flavored_markdown_to_html(source_content, options)
@@ -448,21 +501,25 @@ class NotebookToHTML:
         # Wrap the processed content in a div with appropriate classes
         return f'<div class="{" ".join(classes)}">{str(soup)}</div>'
 
-    def update_markdown_with_section_numbers(self, cell: NotebookCell) -> str:
+    def update_markdown_with_section_numbers(self, cell: NotebookCell, source: str = None) -> str:
         """
         Update markdown headers with section numbers.
         This is now a helper method for process_markdown_cell.
-        
+
         Args:
             cell: NotebookCell instance to update
-        
+            source: Markdown to update (defaults to cell.source); passing the
+                already figure-ref-substituted text keeps those substitutions.
+
         Returns:
             Updated markdown content
         """
+        if source is None:
+            source = cell.source
         if not cell.level or not cell.section_number:
-            return cell.source
-            
-        lines = cell.source.split('\n')
+            return source
+
+        lines = source.split('\n')
         updated_lines = []
 
         for line in lines:
@@ -528,7 +585,8 @@ class NotebookToHTML:
                 if 'text/html' in data:
                     html_content = ''.join(data['text/html'])
 
-                    # Clean up MathJax-related content
+                    # Remove marimo's flex wrapper, then MathJax scripts
+                    html_content = unwrap_marimo_container(html_content)
                     html_content = self.clean_mathjax_content(html_content)
 
                     # Add to outputs if content remains after cleaning
