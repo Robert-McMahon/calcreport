@@ -9,7 +9,8 @@ dependencies = [
     'pint',
     'pandas',
     'numpy',
-    'IPython'
+    'IPython',
+    'cmarkgfm'
 ]
 
 [project.scripts]
