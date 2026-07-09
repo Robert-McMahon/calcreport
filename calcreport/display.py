@@ -1,3 +1,5 @@
+import html as html_module
+import re
 import sympy as sp
 import inspect
 import numpy as np
@@ -101,24 +103,57 @@ def displaymath(var_name, expr, comment='', comment_size="small", equation_size=
     debug_print(f"Generated LaTeX: {equation_latex}")
     render_content(equation_latex, comment=comment, content_type='latex', equation_size=equation_size, comment_size=comment_size, line_height=line_height, comment_width=comment_width)
 
+def latex_to_mathml(latex_source):
+    """Convert LaTeX to MathML for script-free rendering.
+
+    Native MathML displays in any Chromium surface (browsers, VS Code
+    webviews, marimo) without JavaScript, and the report template's MathJax
+    build (tex-mml-chtml) typesets it for the PDF. The original LaTeX is
+    kept in a data-latex attribute for debugging and tooling.
+
+    Returns None if conversion fails (caller falls back to raw delimiters).
+    """
+    try:
+        from latex2mathml.converter import convert
+        mathml = convert(latex_source, display='block')
+    except Exception as e:
+        debug_print(f"latex2mathml conversion failed for {latex_source!r}: {e}")
+        return None
+    # MathML defaults single-letter identifiers to italic; TeX renders
+    # capital Greek upright - match TeX so \Sigma stays an upright sigma.
+    # latex2mathml emits capital Greek as entities &#x00391;-&#x003A9;.
+    mathml = re.sub(r'<mi>(&#x0039[1-9A-F];|&#x003A[0-9];|[Α-Ω])</mi>',
+                    r'<mi mathvariant="normal">\1</mi>', mathml)
+    # Left-align within the flex layout instead of MathML's default centring
+    return mathml.replace(
+        '<math ',
+        f'<math style="text-align:left;margin:0" '
+        f'data-latex="{html_module.escape(latex_source, quote=True)}" ',
+        1)
+
+
 def render_content(content, comment='', content_type='latex', equation_size='small',
                   comment_size='small', line_height='1.2', comment_width='50%',
                   eq_id=None):
     """Render LaTeX equations or HTML content with optional comments.
 
+    LaTeX content is emitted as MathML, which renders without JavaScript
+    everywhere (marimo, VS Code notebook outputs, Jupyter, the exported
+    report). If conversion fails the raw \\[..\\] form is emitted and the
+    report's MathJax still typesets it.
+
     eq_id makes the equation referenceable: the block gets the anchor
     'eq-<eq_id>' and an equation-number placeholder that the exporter fills
     in document order ('@eq:<eq_id>' elsewhere becomes 'Equation (N)').
     """
-    content_html = rf"\[ {content} \]" if content_type == 'latex' else content
+    if content_type == 'latex':
+        content_html = latex_to_mathml(content) or rf"\[ {content} \]"
+    else:
+        content_html = content
     anchor = f' id="eq-{eq_id}"' if eq_id else ''
     number = (f'<span class="eq-number" data-eq-id="{eq_id}"></span>'
               if eq_id else '')
     html_code = f"""
-    <script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-MML-AM_CHTML"></script>
-    <script type="text/javascript">
-         MathJax.Hub.Queue(["Typeset", MathJax.Hub]);
-    </script>
     <div class="math"{anchor}>
         <div class="math-equation">
          {content_html}

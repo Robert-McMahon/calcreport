@@ -13,7 +13,8 @@ dependencies = [
     'cmarkgfm',
     'beautifulsoup4',
     'playwright',
-    'jinja2'
+    'jinja2',
+    "latex2mathml>=3.81.0",
 ]
 
 [project.scripts]
