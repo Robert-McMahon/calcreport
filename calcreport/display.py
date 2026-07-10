@@ -124,6 +124,13 @@ def latex_to_mathml(latex_source):
     # latex2mathml emits capital Greek as entities &#x00391;-&#x003A9;.
     mathml = re.sub(r'<mi>(&#x0039[1-9A-F];|&#x003A[0-9];|[Α-Ω])</mi>',
                     r'<mi mathvariant="normal">\1</mi>', mathml)
+    # Matrix row spacing comes from the browser's built-in mtd padding
+    # (0.5ex 0.4em). marimo's stylesheet contains Tailwind's Preflight
+    # reset (*{padding:0}), and author CSS always beats browser defaults,
+    # so without this the rows of a matrix overlap.
+    mathml = re.sub(r'<mtd(?=[ >])',
+                    '<mtd data-preview="1" style="padding:0.5ex 0.4em"',
+                    mathml)
     # Inline preview styling (the exporter strips every data-preview style,
     # so the report stylesheet keeps control of typography):
     # - font-family: Electron webviews (VS Code) do not resolve the generic
