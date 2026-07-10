@@ -1,8 +1,9 @@
 # calcreport
 
 A workflow for generating presentable engineering calculation reports from notebooks:
-unit-aware calculations (pint) with Mathcad-style TeX output (sympy + MathJax),
-paginated to PDF via HTML and paged.js.
+unit-aware calculations (pint) with Mathcad-style math display (sympy → MathML
+in notebook previews, MathJax in the printed report), paginated to PDF via
+HTML and paged.js.
 
 ## Pipeline
 
@@ -92,10 +93,18 @@ marimo export ipynb --include-outputs report.py -o report.ipynb   # execute + ex
 notebooktohtml report.ipynb report.html --standalone --pdf        # render
 ```
 
-`displaymath` works unchanged in marimo cells (equations preview live via
-MathJax), including multiple calls per cell. Since marimo has no per-cell
-metadata, give the cover page and appendices their metadata as `key: value`
-lines directly under the heading in the markdown cell:
+`displaymath`/`equation` work unchanged in marimo cells, including multiple
+calls per cell. Equations are emitted as MathML with self-contained inline
+styling, so they preview identically in the marimo browser editor and in the
+VS Code marimo extension's notebook view (no JavaScript or stylesheet needed
+in the host; the exporter strips the preview styling, so the report
+stylesheet controls print typography). If previews ever look wrong in
+VS Code after upgrading calcreport, fully restart VS Code - kernel processes
+keep the version of calcreport they imported at launch.
+
+Since marimo has no per-cell metadata, give the cover page and appendices
+their metadata as `key: value` lines directly under the heading in the
+markdown cell:
 
 ```markdown
 # Cover Page
