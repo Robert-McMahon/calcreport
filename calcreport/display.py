@@ -124,16 +124,21 @@ def latex_to_mathml(latex_source):
     # latex2mathml emits capital Greek as entities &#x00391;-&#x003A9;.
     mathml = re.sub(r'<mi>(&#x0039[1-9A-F];|&#x003A[0-9];|[Α-Ω])</mi>',
                     r'<mi mathvariant="normal">\1</mi>', mathml)
-    # font-size/line-height: notebook hosts (VS Code, marimo) render text
-    # at ~13px with a fixed line-height that shrinks math and squashes
-    # matrix rows; 'normal' restores row spacing. The exporter strips this
-    # preview sizing so the report stylesheet keeps control of typography.
-    # text-align/margin: left-align within the flex layout instead of
-    # MathML's default centring.
+    # Inline preview styling (the exporter strips every data-preview style,
+    # so the report stylesheet keeps control of typography):
+    # - font-family: Electron webviews (VS Code) do not resolve the generic
+    #   'math' family to a font with an OpenType MATH table, which collapses
+    #   matrix rows and leaves fences unstretched; name real math fonts.
+    # - font-size/line-height: notebook hosts render text at ~13px with a
+    #   fixed line-height that shrinks math and squashes mtable rows.
+    # - text-align/margin: left-align within the flex layout instead of
+    #   MathML's default centring.
     return mathml.replace(
         '<math ',
-        f'<math style="font-size:1.2em;line-height:normal;'
-        f'text-align:left;margin:0" '
+        f'<math style="font-family:\'Cambria Math\',\'STIX Two Math\','
+        f'\'Latin Modern Math\',\'TeX Gyre Termes Math\',\'XITS Math\',math;'
+        f'font-size:1.2em;line-height:normal;text-align:left;margin:0" '
+        f'data-preview="1" '
         f'data-latex="{html_module.escape(latex_source, quote=True)}" ',
         1)
 
@@ -157,15 +162,20 @@ def render_content(content, comment='', content_type='latex', equation_size='sma
     else:
         content_html = content
     anchor = f' id="eq-{eq_id}"' if eq_id else ''
-    number = (f'<span class="eq-number" data-eq-id="{eq_id}"></span>'
-              if eq_id else '')
+    number = (f'<span class="eq-number" data-eq-id="{eq_id}" data-preview="1" '
+              f'style="align-self:center;padding-left:4mm;font-style:normal">'
+              f'</span>' if eq_id else '')
+    # Inline flex layout (marked data-preview, stripped by the exporter):
+    # notebook hosts isolate each output, so the notebook's <style> cell
+    # does not reach it, and marimo's VS Code renderer sets display:contents
+    # on the output's direct child, which would dissolve a stylesheet flex.
     html_code = f"""
-    <div class="math"{anchor}>
-        <div class="math-equation">
+    <div class="math"{anchor} data-preview="1" style="display:flex;flex-flow:row wrap;align-items:center;justify-content:space-between;margin:1em 0">
+        <div class="math-equation" data-preview="1" style="flex:2 1 auto">
          {content_html}
         </div>
         {number}
-        <div class="math-comment">
+        <div class="math-comment" data-preview="1" style="flex:1 1 auto;text-align:right;font-style:italic;padding-left:2mm">
          {comment}
         </div>
     </div>

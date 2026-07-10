@@ -338,11 +338,11 @@ class NotebookToHTML:
     def inject_reference_numbers(self, html_content: str) -> str:
         """Fill the empty number placeholders left by equation()/tables."""
         html_content = re.sub(
-            r'(<span class="eq-number" data-eq-id="([^"]+)">)(</span>)',
+            r'(<span class="eq-number" data-eq-id="([^"]+)"[^>]*>)(</span>)',
             lambda m: f'{m.group(1)}({self.eq_refs.get(m.group(2), "?")}){m.group(3)}',
             html_content)
         html_content = re.sub(
-            r'(<span class="tbl-number" data-tbl-id="([^"]+)">)(</span>)',
+            r'(<span class="tbl-number" data-tbl-id="([^"]+)"[^>]*>)(</span>)',
             lambda m: f'{m.group(1)}{self.tbl_refs.get(m.group(2), "?")}{m.group(3)}',
             html_content)
         return html_content
@@ -666,10 +666,17 @@ class NotebookToHTML:
                     html_content = unwrap_marimo_container(html_content)
                     html_content = self.clean_mathjax_content(html_content)
 
-                    # Strip the notebook-preview math sizing so the report
-                    # stylesheet controls equation typography
-                    html_content = html_content.replace(
-                        'font-size:1.2em;line-height:normal;', '')
+                    # Strip notebook-preview inline styling (marked
+                    # data-preview) so the report stylesheet keeps control
+                    # of layout and typography. Only re-serialize when
+                    # something was stripped, to leave legacy outputs
+                    # byte-identical.
+                    if 'data-preview' in html_content:
+                        fragment = BeautifulSoup(html_content, 'html.parser')
+                        for element in fragment.select('[data-preview]'):
+                            del element['style']
+                            del element['data-preview']
+                        html_content = str(fragment)
 
                     # Fill equation/table numbers and resolve @refs (so
                     # comments can say 'per @eq:weight' or 'see @fig:mesh')
@@ -823,6 +830,7 @@ def convert_notebook_to_html(notebook_path: str, output_path: str, template_path
 
     html_content = converter.convert_notebook(notebook_path)
     soup = BeautifulSoup(html_content, 'html.parser')
+
 
     if standalone:
         from .standalone import inline_assets

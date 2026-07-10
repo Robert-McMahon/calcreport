@@ -21,9 +21,11 @@ def code_cell(source, html_output=None):
 
 
 EQ_OUTPUT = (
-    '<div class="math" id="eq-weight"><div class="math-equation">'
+    '<div class="math" id="eq-weight" data-preview="1" style="display:flex">'
+    '<div class="math-equation">'
     '\\[ F = m \\cdot g \\]'
-    '<span class="eq-number" data-eq-id="weight"></span></div>'
+    '<span class="eq-number" data-eq-id="weight" data-preview="1" '
+    'style="align-self:center"></span></div>'
     '<div class="math-comment">Engine weight per @fig:lc1</div></div>'
 )
 
@@ -63,8 +65,13 @@ class TestCrossReferences:
             in report_html
 
     def test_equation_number_injected(self, report_html):
-        assert '<span class="eq-number" data-eq-id="weight">(1)</span>' \
-            in report_html
+        assert '(1)' in report_html
+        assert 'data-eq-id="weight"' in report_html
+
+    def test_preview_styles_stripped(self, report_html):
+        assert 'data-preview' not in report_html
+        assert 'display:flex' not in report_html
+        assert 'align-self:center' not in report_html
 
     def test_table_reference_and_number(self, report_html):
         assert '<a class="table-ref" href="#tbl-res">Table 1</a>' in report_html
@@ -110,8 +117,7 @@ class TestRuntimeEmission:
         m = Q_(2, u.kg)
         equation('F = m * 2', id='weight')
         assert 'id="eq-weight"' in captured[0]
-        assert '<span class="eq-number" data-eq-id="weight"></span>' \
-            in captured[0]
+        assert 'class="eq-number" data-eq-id="weight"' in captured[0]
         # result line is not numbered
         assert 'eq-number' not in captured[1]
 
@@ -121,7 +127,8 @@ class TestRuntimeEmission:
         m = Q_(2, u.kg)
         equation('F = m * 2')
         assert 'eq-number' not in captured[0]
-        assert '<div class="math">' in captured[0]
+        assert 'class="math"' in captured[0]
+        assert 'id="eq-' not in captured[0]
 
     def test_results_table_id_and_caption(self):
         from calcreport import create_results_table
