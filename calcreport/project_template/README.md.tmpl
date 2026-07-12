@@ -1,0 +1,39 @@
+# {{jobnum}} - {{client}} - {{project}}
+
+Engineering calculation report authored in [marimo](https://marimo.io) and
+rendered with [calcreport](https://github.com/Robert-McMahon/calcreport).
+
+## Authoring
+
+```bash
+uv run marimo edit {{notebook}}
+```
+
+Cells do not auto-run when the notebook opens - Run All (Ctrl+Shift+R), or
+enable "Autorun on startup" in the marimo runtime settings. marimo requires
+every variable to be defined in exactly one cell.
+
+## Rendering the report
+
+```bash
+uv run marimo export ipynb --include-outputs {{notebook}} -o {{jobnum}}-001.ipynb
+uv run notebooktohtml {{jobnum}}-001.ipynb {{jobnum}}-001.html --standalone --pdf
+```
+
+`--pdf` needs a one-time `uv run playwright install chromium`.
+
+## Conventions
+
+- Cover page / appendix metadata are `key: value` lines under the heading
+  (title, client, project, docid, revision, filename, date, author).
+- Figures: `Image('images/x.png', metadata={'ID': 'x', 'caption': '...'})`,
+  referenced with `@fig:x`.
+- Equations: `F = equation('F = m * g', to=u.kN, id='weight')`, referenced
+  with `@eq:weight`; sections `## Heading {#sec:id}` with `@sec:id`;
+  tables `create_results_table(..., table_id='res', caption='...')` with
+  `@tbl:res`.
+- To customize report styling, copy the bundled `templates/` folder from
+  calcreport (`calcreport/export/templates/`) into this project and edit -
+  a local `templates/report_template.html` overrides the packaged one.
+- After updating calcreport upstream: `uv lock --upgrade-package calcreport
+  && uv sync`, then fully restart VS Code (kernels keep the old import).

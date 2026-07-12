@@ -1,0 +1,12 @@
+[project]
+name = "{{name}}"
+version = "0.1.0"
+description = "{{client}} - {{project}} engineering calculations"
+requires-python = ">=3.12"
+dependencies = [
+    "calcreport[marimo]",
+    "matplotlib>=3.8",
+]
+
+[tool.uv.sources]
+calcreport = { git = "https://github.com/Robert-McMahon/calcreport" }

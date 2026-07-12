@@ -19,6 +19,7 @@ dependencies = [
 
 [project.scripts]
 notebooktohtml = "calcreport.export.notebooktohtml:main"
+calcreport-init = "calcreport.newproject:main"
 
 [project.optional-dependencies]
 marimo = [

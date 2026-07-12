@@ -5,6 +5,21 @@ unit-aware calculations (pint) with Mathcad-style math display (sympy → MathML
 in notebook previews, MathJax in the printed report), paginated to PDF via
 HTML and paged.js.
 
+## Starting a new project
+
+```bash
+uvx --from "git+https://github.com/Robert-McMahon/calcreport" \
+    calcreport-init ~/projects/30040-CLIENT-PROJECT
+```
+
+Scaffolds the project directory: pyproject with `calcreport[marimo]` (from
+git), a starter marimo report notebook prefilled from the
+`jobnum-CLIENT-PROJECT` directory name (override with `--client/--project/
+--title`), `images/`, README, .gitignore, a local git repo, and a synced
+`.venv`. Then `uv run marimo edit <jobnum>-001.py` and follow the project
+README. Create the private remote when ready:
+`gh repo create <name> --private --source .`
+
 ## Pipeline
 
 ```

@@ -1,0 +1,101 @@
+import marimo
+
+app = marimo.App()
+
+
+@app.cell
+def _():
+    import marimo as mo
+    import numpy as np
+    import sympy as sp
+    from IPython.display import Image
+    from calcreport import (Q_, create_results_table, displaymath, equation,
+                            render_content, u)
+    return (Image, Q_, create_results_table, displaymath, equation, mo, np,
+            render_content, sp, u)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""# Cover Page
+title: {{title}}
+client: {{client}}
+project: {{project}}
+docid: {{jobnum}}-001
+revision: 0
+
+| Revision | Date | Purpose | By | Approved |
+|----------|------|---------|----|----------|
+| 0 | {{date}} | Draft | R.McMahon | |""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""# Executive Summary
+
+Summary of the assessment and its conclusion.""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""# Introduction
+
+## Background
+
+Describe the equipment, the change being assessed, and the information
+supplied by the client.""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""# Design Input {#sec:input}
+
+Design inputs and their sources:""")
+    return
+
+
+@app.cell
+def _(Q_, displaymath, u):
+    m_example = Q_(100, u.kg)
+    displaymath(m_example, comment='Example input mass - replace [1]')
+
+    g = Q_(9.81, u.m / u.s**2)
+    displaymath(g, comment='Acceleration due to gravity')
+    return g, m_example
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""# Analysis
+
+Per the inputs in @sec:input, the example load per @eq:example is:""")
+    return
+
+
+@app.cell
+def _(equation, g, m_example, u):
+    F_example = equation('F_example = m_example * g', to=u.kN,
+                         comment='Example calculation - replace', id='example')
+    return (F_example,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""# Conclusion
+
+State the outcome against the acceptance criteria.""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""# Appendix
+title: Reference Documents""")
+    return
+
+
+if __name__ == "__main__":
+    app.run()
