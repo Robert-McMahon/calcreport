@@ -6,7 +6,8 @@ import numpy as np
 import pandas as pd
 from sympy import Matrix, latex
 from IPython.display import display, HTML
-from .utils import escape_latex, replace_greek_letters, format_var_name
+from .utils import (escape_latex, replace_greek_letters, format_var_name,
+                    sanitize_units_latex)
 from .units import u, Q_
 
 DEBUG_MODE = False  
@@ -83,11 +84,11 @@ def displaymath(var_name, expr, comment='', comment_size="small", equation_size=
         if isinstance(expr.magnitude, np.ndarray):
             debug_print("Magnitude is a NumPy array.")
             debug_print(f"Sympified expression: {expr}")
-            equation_latex = f"{formatted_var_name} = {sp.latex(Matrix(expr.magnitude))} \\, {sp.latex(expr.units)}"
+            equation_latex = f"{formatted_var_name} = {sp.latex(Matrix(expr.magnitude))} \\, {sanitize_units_latex(sp.latex(expr.units))}"
 
         else:
             debug_print("Magnitude is not a NumPy array.")
-            equation_latex = f"{formatted_var_name} = {sp.latex(expr.magnitude)} \\, {sp.latex(expr.units)}"
+            equation_latex = f"{formatted_var_name} = {sp.latex(expr.magnitude)} \\, {sanitize_units_latex(sp.latex(expr.units))}"
     
     else:
         debug_print("Expression is a regular variable.")
@@ -222,6 +223,10 @@ def create_table(table, table_id=None, caption='',
     if isinstance(table, pd.DataFrame):
         table_html = table.to_html(index=index, escape=escape, border=0,
                                    classes=custom_classes)
+        # pandas stamps text-align:right on the header row; strip it so the
+        # report stylesheet keeps control of table alignment.
+        table_html = table_html.replace(
+            '<tr style="text-align: right;">', '<tr>', 1)
     elif isinstance(table, str):
         table_html = table
     elif hasattr(table, 'as_raw_html'):

@@ -16,6 +16,11 @@ h1 {
     break-before: always;
 }
 
+/* Keep a heading on the same page as the content that follows it */
+h1, h2, h3, h4 {
+    break-after: avoid;
+}
+
 /*||FIGURES||*/
 
 .figure {

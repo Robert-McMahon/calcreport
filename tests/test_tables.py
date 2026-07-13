@@ -66,3 +66,16 @@ def test_pagedjs_detached_parent_regression_guard_is_bundled():
     assert recursive_call in template
     assert guard in template
     assert template.index(recursive_call) < template.index(guard)
+
+
+def test_create_table_header_row_carries_no_inline_alignment():
+    """pandas stamps text-align:right on the thead row; the report
+    stylesheet centres table text, so the inline style must be stripped."""
+    from calcreport import create_table
+
+    df = pd.DataFrame({'Parameter': ['Displacement'],
+                       'Candidate A': ['12.9 cm3/rev']})
+    html = create_table(df, table_id='cmp', caption='Motor check').data
+
+    assert 'text-align: right' not in html
+    assert '<thead>' in html

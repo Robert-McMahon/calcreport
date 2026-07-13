@@ -21,7 +21,7 @@ import sympy as sp
 
 from .display import render_content
 from .units import u
-from .utils import escape_latex, format_var_name
+from .utils import escape_latex, format_var_name, sanitize_units_latex
 
 
 class EquationError(ValueError):
@@ -202,7 +202,8 @@ def value_to_latex(value, digits=None):
         else:
             magnitude_sym = sp.sympify(magnitude)
         magnitude_latex = sp.latex(_round_for_display(magnitude_sym, digits))
-        return f"{magnitude_latex} \\, {sp.latex(value.units)}"
+        units_latex = sanitize_units_latex(sp.latex(value.units))
+        return f"{magnitude_latex} \\, {units_latex}"
     if isinstance(value, (sp.Basic, sp.MatrixBase)):
         return sp.latex(_round_for_display(value, digits))
     if isinstance(value, np.ndarray):

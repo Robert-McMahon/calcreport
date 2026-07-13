@@ -72,6 +72,7 @@ class NotebookCell:
         self.level = level  # For headers: 1 for h1, 2 for h2, 3 etc, or None for non-headers
         self.section_number = section_number
         self.header_id = header_id
+        self.headers = []  # every registered header in this cell, in line order
         self.category = None  # cover_page, executive_summary, body, appendix
 
 class DocumentStructure:
@@ -200,11 +201,13 @@ class NotebookToHTML:
 
                         # Generate section ID (eg s1s2s3)
                         section_id = 's' + 's'.join(str(n) for n in section_numbers)
-                        # Update cell properties
-                        nb_cell.level = level
-                        nb_cell.section_number = section_number
-                        nb_cell.header_id = section_id
-                        
+                        # Update cell properties (first header wins - it
+                        # drives the cell-level category/anchor handling)
+                        if nb_cell.level is None:
+                            nb_cell.level = level
+                            nb_cell.section_number = section_number
+                            nb_cell.header_id = section_id
+
                         # Add to headers list
                         header_info={
                             'level': level,
@@ -214,13 +217,16 @@ class NotebookToHTML:
                             'category': current_category
                         }
                         self.structure.headers.append(header_info)
+                        nb_cell.headers.append(header_info)
                         if sec_ref_id:
                             self.sec_refs[sec_ref_id] = {
                                 'number': section_number,
                                 'anchor': section_id,
                             }
-                        break
-                                    
+                        # No break: a cell may hold several headings (e.g.
+                        # an h1 followed by its first h2) - register all of
+                        # them so numbering and the TOC stay complete.
+
             # Add to appropriate content collection
             if nb_cell.category not in ["cover_page", "executive_summary", "appendix"]:
                 self.structure.body_cells.append(nb_cell)
@@ -439,7 +445,11 @@ class NotebookToHTML:
         if not self.structure.executive_summary:
             return ""
             
-        content = cmarkgfm.github_flavored_markdown_to_html(self.structure.executive_summary.source, options)
+        # Resolve @eq/@tbl/@fig/@sec references here too - all reference
+        # numbers are collected from the whole notebook before any section
+        # is generated, so the summary can cite results that appear later.
+        source = self.resolve_cross_references(self.structure.executive_summary.source)
+        content = cmarkgfm.github_flavored_markdown_to_html(source, options)
         return f'''
         <div class="executive-summary" id="executive-summary">
             {content}
@@ -593,9 +603,12 @@ class NotebookToHTML:
         """
         if source is None:
             source = cell.source
-        if not cell.level or not cell.section_number:
+        if not cell.headers:
             return source
 
+        # Headers were registered in line order during extract_structure,
+        # so walk them in step with the heading lines of the source.
+        cell_headers = iter(cell.headers)
         lines = source.split('\n')
         updated_lines = []
 
@@ -604,15 +617,12 @@ class NotebookToHTML:
             if header_match:
                 hashes = header_match.group(1)
                 text = header_match.group(2).strip()
-                # Find matching header in our structure
-                for header in self.structure.headers:
-                    if (header['text'] == text and 
-                        header['level'] == len(hashes) and 
-                        header['id'] == cell.header_id):
-                        line = f"{hashes} {header['section_number']}. {text}"
-                        break
+                header = next(cell_headers, None)
+                if (header and header['text'] == text and
+                        header['level'] == len(hashes)):
+                    line = f"{hashes} {header['section_number']}. {text}"
             updated_lines.append(line)
-    
+
         return '\n'.join(updated_lines)
 
     def process_code_cell(self, cell: NotebookCell, figure_refs: dict = None) -> str:

@@ -86,3 +86,22 @@ class TestPrefixBoundary:
         assert latexify_symbol_segment('vartheta') == '\\vartheta '
         assert latexify_symbol_segment('theta') == '\\theta '
         assert latexify_symbol_segment('eta') == '\\eta '
+
+
+class TestUnitLatex:
+    def test_percent_unit_hoisted_out_of_text_mode(self):
+        # latex2mathml renders \% inside \text{} as a literal backslash;
+        # a pure-percent unit must come out as math-mode \% instead.
+        from calcreport.equation import value_to_latex
+        from calcreport.units import Q_
+
+        latex = value_to_latex(Q_(26.04, 'percent'))
+        assert latex.endswith(r'\%')
+        assert r'\text{\%}' not in latex
+
+    def test_ordinary_units_untouched(self):
+        from calcreport.equation import value_to_latex
+        from calcreport.units import Q_
+
+        latex = value_to_latex(Q_(21.16, 'N*m'))
+        assert r'\mathtt{\text{' in latex

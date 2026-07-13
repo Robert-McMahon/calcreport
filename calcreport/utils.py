@@ -22,6 +22,17 @@ def escape_latex(text):
         text = text.replace(old, new)
     return text
 
+def sanitize_units_latex(tex):
+    """Make sympy's rendering of pint units safe for latex2mathml.
+
+    sympy renders a pint Unit as \\mathtt{\\text{...}} with % escaped to
+    \\%. latex2mathml cannot render a percent inside \\text{} (a raw % is
+    parsed as a comment, \\% is emitted as a literal backslash-percent), so
+    hoist a pure-percent unit out into math mode where \\% converts to %.
+    """
+    return tex.replace(r'\mathtt{\text{\%}}', r'\%')
+
+
 def replace_greek_letters(text):
     """Replace whole words that match Greek letters with LaTeX equivalents."""
     pattern = r'(' + '|'.join(re.escape(key) for key in greek_letters.keys()) + r')'
