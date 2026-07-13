@@ -97,6 +97,16 @@ Note: projects with a customized local `templates/styles.css` need the
 `.eq-number` / `.table-block` styles from the bundled stylesheet for
 numbers and captions to display nicely.
 
+## Mixed-unit and custom tables
+
+Use `create_table` when a report table contains mixed units or has
+already been formatted by another renderer. It accepts a pandas DataFrame,
+raw HTML, or an object such as Great Tables `GT` that provides
+`as_raw_html()`. Supplying `table_id` and `caption`
+retains calcreport numbering and cross-references without adding an optional
+renderer dependency. Existing force-result workflows can continue to use
+`create_results_table`.
+
 ## Authoring in marimo
 
 Reports can be authored in [marimo](https://marimo.io) instead of Jupyter

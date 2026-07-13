@@ -189,6 +189,52 @@ def render_content(content, comment='', content_type='latex', equation_size='sma
     """
     display(HTML(html_code))
 
+
+def wrap_table_html(table_html, table_id=None, caption=''):
+    """Wrap table HTML with calcreport numbering and cross-references.
+
+    If table_id is supplied, @tbl:<table_id> references are resolved
+    by the exporter and the caption receives its document-order table number.
+    Without an ID or caption the input HTML is returned unchanged.
+    """
+    if not table_id and not caption:
+        return HTML(table_html)
+
+    anchor = f' id="tbl-{table_id}"' if table_id else ''
+    number = (f'<span class="tbl-number" data-tbl-id="{table_id}"></span>'
+              if table_id else '')
+    caption_text = f': {caption}' if caption and table_id else caption
+    return HTML(
+        f'<div class="table-block"{anchor}>'
+        f'<div class="table-caption">Table {number}{caption_text}</div>'
+        f'{table_html}</div>'
+    )
+
+
+def create_table(table, table_id=None, caption='',
+                 custom_classes='results-table', index=False, escape=False):
+    """Create a report table from a DataFrame, raw HTML, or table renderer.
+
+    Objects such as great_tables.GT are supported without an optional
+    dependency when they provide as_raw_html(). DataFrame values are
+    preserved as supplied, allowing callers to format mixed-unit columns.
+    """
+    if isinstance(table, pd.DataFrame):
+        table_html = table.to_html(index=index, escape=escape, border=0,
+                                   classes=custom_classes)
+    elif isinstance(table, str):
+        table_html = table
+    elif hasattr(table, 'as_raw_html'):
+        table_html = table.as_raw_html(inline_css=False)
+    else:
+        raise TypeError(
+            'table must be a pandas DataFrame, an HTML string, or expose '
+            'as_raw_html()'
+        )
+
+    return wrap_table_html(table_html, table_id=table_id, caption=caption)
+
+
 def create_results_table(*solutions, case_names=None, custom_classes="results-table",
                          table_id=None, caption=''):
     """Create an HTML table from multiple solution dictionaries.
@@ -216,14 +262,4 @@ def create_results_table(*solutions, case_names=None, custom_classes="results-ta
     html_table = styled_table.to_html(table_id="results_table")
     html_table = html_table.replace(r"<table", f'<table class={custom_classes}')
 
-    if table_id:
-        caption_text = f": {caption}" if caption else ""
-        html_table = (
-            f'<div class="table-block" id="tbl-{table_id}">'
-            f'<div class="table-caption">Table '
-            f'<span class="tbl-number" data-tbl-id="{table_id}"></span>'
-            f'{caption_text}</div>'
-            f'{html_table}</div>'
-        )
-
-    return HTML(html_table)
+    return wrap_table_html(html_table, table_id=table_id, caption=caption)

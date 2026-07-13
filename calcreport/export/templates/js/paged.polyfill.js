@@ -2263,6 +2263,12 @@
 				this.lastChildCheck(parentElement.lastElementChild, rootElement);
 			}
 
+			// Recursive cleanup may already have detached this element.
+			// Do not remove or index it a second time.
+			if (!parentElement.parentNode) {
+				return;
+			}
+
 			let refId = parentElement.dataset.ref;
 
 			// A table row, math element or paragraph from which all content has been removed
