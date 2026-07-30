@@ -1,0 +1,6 @@
+/.quarto/
+**/*.quarto_ipynb
+/_output/
+/pilot.html
+/pilot.typ
+/tmp/

@@ -1,0 +1,24 @@
+project:
+  type: default
+  output-dir: _output
+
+engine: marimo
+external-env: true
+
+execute:
+  echo: false
+  warning: true
+  error: true
+
+format:
+  typst:
+    toc: false
+    number-sections: true
+    papersize: a4
+    margin:
+      top: 22mm
+      bottom: 22mm
+      left: 24mm
+      right: 20mm
+    fontsize: 10pt
+    keep-typ: true

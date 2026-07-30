@@ -151,3 +151,31 @@ and takes precedence.
 Migrating an existing notebook: `marimo convert report.ipynb -o report.py`,
 then fix the imports cell (no `import *` or `from __future__` in marimo cells)
 and add the metadata lines above.
+
+## Authoring Quarto `.qmd` reports
+
+For Quarto's static Typst path, use the portable Markdown helpers to emit
+semantic equations and tables from marimo cells:
+
+```python
+from calcreport import (Q_, equation, equation_markdown, quantity_markdown,
+                        table_markdown, u)
+
+m_engine = Q_(3448, u.kg)
+quantity_markdown("m_engine", m_engine, "Engine mass")
+
+F_engine = equation("F_engine = m_engine * g", to=u.kN)
+equation_markdown("F_engine = m_engine * g", F_engine,
+                  id="engine-weight", comment="Static engine weight")
+
+table_markdown(
+    ("Item", "Value"),
+    (("Engine mass", "3448 kg"), ("Engine weight", "33.82 kN")),
+    align=("left", "right"), caption="Calculation summary", id="summary",
+)
+```
+
+These objects expose semantic `text/markdown`. The current `quarto-marimo`
+v0.4.5 extractor needs the small compatibility change demonstrated in
+`pilots/quarto-marimo`: prefer `text/markdown` when extracting a marimo MIME
+bundle. Quarto references then use `@eq-engine-weight` and `@tbl-summary`.

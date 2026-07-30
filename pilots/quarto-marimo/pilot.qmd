@@ -1,0 +1,90 @@
+---
+title: "Engine Support Load - Calculation Pilot"
+subtitle: "Quarto + marimo + Typst feasibility report"
+author: "Robert McMahon BEng (Mech)"
+date: 2026-07-18
+lang: en-AU
+document-id: CR-PILOT-001
+revision: 0
+external-env: true
+---
+
+# Document control {.unnumbered}
+
+| Field | Value |
+|---|---|
+| Document ID | CR-PILOT-001 |
+| Revision | 0 |
+| Status | Pilot - not for design use |
+| Purpose | Test the Quarto marimo engine and Typst output with `calcreport` |
+
+# Basis {#sec-basis}
+
+This pilot determines the static gravity load from an example engine mass. It
+tests unit-aware inputs, symbolic calculation display, table output, section
+references, equation references, and Typst PDF generation.
+
+```{python .marimo}
+from calcreport import (Q_, equation, equation_markdown, quantity_markdown,
+                        table_markdown, u)
+```
+
+## Design inputs
+
+```{python .marimo}
+m_engine = Q_(3448, u.kg)
+quantity_markdown("m_engine", m_engine, "Engine mass")
+```
+
+```{python .marimo}
+g = Q_(9.81, u.m / u.s**2)
+quantity_markdown("g", g, "Acceleration due to gravity")
+```
+
+# Calculation {#sec-calculation}
+
+Using the inputs defined in @sec-basis, the engine weight is calculated below.
+
+```{python .marimo}
+#| output: false
+engine_expr = "m_engine * g"
+F_engine = equation(
+    f"F_engine = {engine_expr}",
+    to=u.kN,
+    comment="Static engine weight",
+)
+```
+
+```{python .marimo}
+equation_markdown(
+    f"F_engine = {engine_expr}",
+    F_engine,
+    comment="Static engine weight",
+    id="engine-weight",
+)
+```
+
+The calculated load is nominally referenced as @eq-engine-weight.
+
+# Results {#sec-results}
+
+```{python .marimo}
+table_markdown(
+    ("Item", "Value"),
+    (
+        ("Engine mass", f"{m_engine.magnitude:.4g} kg"),
+        ("Gravity", f"{g.magnitude:.4g} m/s^2"),
+        ("Engine weight", f"{F_engine.m_as(u.kN):.4g} kN"),
+    ),
+    align=("left", "right"),
+    caption="Calculation summary",
+    id="summary",
+)
+```
+
+The results are summarised in @tbl-summary.
+
+# Conclusion
+
+The example static engine load is **33.82 kN**. This is a workflow pilot only;
+it is not an issued engineering calculation.
