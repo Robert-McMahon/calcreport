@@ -12,6 +12,25 @@
     }
 
 /*||MARKDOWN||*/
+/* paged.js mis-fragments a markdown block that straddles a page boundary: the
+   fragments are painted out of order and the block's heading is pushed after
+   its own content (a split <ol> also restarts its numbering wrongly). Keeping
+   each markdown cell on one page avoids the fragmentation entirely.
+   Do NOT put break-inside: avoid on the inner ol/ul/table instead - paged.js
+   then loops forever and the render never completes.
+   Requires that no single markdown cell exceeds one page; an oversized cell
+   collapses the layout (it is mis-rendered without this rule too). */
+.markdown-cell {
+    break-inside: avoid;
+}
+
+/* The cover page is height: 100%, so without an explicit break the executive
+   summary leaves a zero-height fragment on page 1 and the TOC's
+   target-counter reports page 1 instead of 2. */
+.executive-summary {
+    break-before: page;
+}
+
 h1 {
     break-before: always;
 }
