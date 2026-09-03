@@ -20,6 +20,18 @@ from importlib import resources
 from pathlib import Path
 
 
+# Starter notebook per document style (see STYLE_TEMPLATES in the exporter):
+# a full engineering report, or a short calculation sheet.
+NOTEBOOK_TEMPLATES = {
+    'report': 'notebook.py.tmpl',
+    'calculation': 'calculation.py.tmpl',
+}
+DEFAULT_TITLES = {
+    'report': 'Engineering Calculation Report',
+    'calculation': 'Engineering Calculation',
+}
+
+
 def parse_project_name(folder_name):
     """Split '30040-CLIENT-PROJECT' into job number, client, project.
 
@@ -44,8 +56,16 @@ def render_template(name, substitutions):
 
 
 def create_project(directory, client=None, project=None, title=None,
-                   sync=True, git=True):
-    """Create a calcreport project at `directory`. Returns the Path."""
+                   sync=True, git=True, style='report'):
+    """Create a calcreport project at `directory`. Returns the Path.
+
+    `style` picks the starter notebook: 'report' (cover page, executive
+    summary, introduction...) or 'calculation' (title block, references,
+    objective, inputs, calculations, conclusions).
+    """
+    if style not in NOTEBOOK_TEMPLATES:
+        raise ValueError(f"Unknown style '{style}' - expected one of: "
+                         f"{', '.join(NOTEBOOK_TEMPLATES)}")
     directory = Path(directory).expanduser().resolve()
     if directory.exists() and any(directory.iterdir()):
         raise SystemExit(f"Refusing to scaffold into non-empty directory: {directory}")
@@ -55,7 +75,7 @@ def create_project(directory, client=None, project=None, title=None,
         'jobnum': jobnum,
         'client': client or client_token,
         'project': project or project_token,
-        'title': title or 'Engineering Calculation Report',
+        'title': title or DEFAULT_TITLES[style],
         'name': directory.name.lower(),
         'notebook': f'{jobnum}-001.py',
         'date': datetime.date.today().isoformat(),
@@ -70,7 +90,7 @@ def create_project(directory, client=None, project=None, title=None,
     (directory / '.gitignore').write_text(
         render_template('gitignore.tmpl', substitutions), encoding='utf-8')
     (directory / f'{jobnum}-001.py').write_text(
-        render_template('notebook.py.tmpl', substitutions), encoding='utf-8')
+        render_template(NOTEBOOK_TEMPLATES[style], substitutions), encoding='utf-8')
 
     if git and shutil.which('git'):
         subprocess.run(['git', 'init', '-q'], cwd=directory, check=True)
@@ -98,6 +118,11 @@ def main():
                         '(default: parsed from the directory name).')
     parser.add_argument('--project', help='Project name for the cover page.')
     parser.add_argument('--title', help='Report title for the cover page.')
+    parser.add_argument('--style', choices=sorted(NOTEBOOK_TEMPLATES), default='report',
+                        help="Starter notebook style: 'report' (cover page, executive "
+                             "summary, TOC) or 'calculation' (title block and revision "
+                             "history, references, objective, inputs, calculations, "
+                             "conclusions). Default: report.")
     parser.add_argument('--no-sync', action='store_true',
                         help='Skip creating the venv with uv sync.')
     parser.add_argument('--no-git', action='store_true',
@@ -106,7 +131,8 @@ def main():
 
     directory = create_project(args.directory, client=args.client,
                                project=args.project, title=args.title,
-                               sync=not args.no_sync, git=not args.no_git)
+                               sync=not args.no_sync, git=not args.no_git,
+                               style=args.style)
 
     jobnum = parse_project_name(directory.name)[0]
     print(f"""

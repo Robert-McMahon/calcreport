@@ -1,0 +1,97 @@
+import marimo
+
+app = marimo.App()
+
+
+@app.cell
+def _():
+    import marimo as mo
+    import numpy as np
+    import sympy as sp
+    from IPython.display import Image
+    from calcreport import (Q_, create_results_table, displaymath, equation,
+                            render_content, u)
+    return (Image, Q_, create_results_table, displaymath, equation, mo, np,
+            render_content, sp, u)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""# Title Block
+title: {{title}}
+client: {{client}}
+project: {{project}}
+docid: {{jobnum}}-001
+revision: 0
+date: {{date}}
+author: R. McMahon
+
+| Rev | Date | Description | Calc | Chk | App |
+|-----|------|-------------|------|-----|-----|
+| 0 | {{date}} | Draft for review | RMC | | |""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""# References
+
+| ID | Reference | Publisher | Date/Rev | Description |
+|----|-----------|-----------|----------|-------------|
+| [1] | Document number or title | Publisher | Rev | What it supplies |""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""# Objective
+
+State what the calculation must determine or prove.
+
+Assumptions:
+
+1. List each assumption the inputs or method rely on.""")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""# Inputs to Calculations {#sec:input}""")
+    return
+
+
+@app.cell
+def _(Q_, displaymath, u):
+    m_example = Q_(100, u.kg)
+    displaymath(m_example, comment='Example input mass - [1]')
+
+    g = Q_(9.81, u.m / u.s**2)
+    displaymath(g, comment='Acceleration due to gravity')
+    return g, m_example
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""# Calculations
+
+From the inputs in @sec:input, the example load is:""")
+    return
+
+
+@app.cell
+def _(equation, g, m_example, u):
+    F_example = equation('F_example = m_example * g', to=u.kN,
+                         comment='Example calculation - replace', id='example')
+    return (F_example,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""# Conclusions
+
+State the outcome (@eq:example) against the acceptance criteria.""")
+    return
+
+
+if __name__ == "__main__":
+    app.run()

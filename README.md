@@ -34,7 +34,28 @@ notebooktohtml report.ipynb report.html --standalone   # single self-contained f
 ```
 
 `--pdf` needs a one-time `playwright install chromium`. A project-local
-`templates/report_template.html` overrides the bundled template.
+`templates/<template name>` overrides the bundled template of the same
+name.
+
+## Document styles
+
+Two document styles are bundled, each with its own template and
+stylesheet in `calcreport/export/templates/`:
+
+| Style | Front-matter cell | Layout |
+|-------|-------------------|--------|
+| `report` (default) | `# Cover Page` | Cover page, executive summary and table of contents; every top-level section starts a new page. `report_template.html` + `styles.css`. |
+| `calculation` | `# Title Block` | Title block and revision history at the top of page 1, the document identity in the running header of every page, numbered sections flowing on under a rule, no TOC. `calculation_template.html` + `calculation.css`. |
+
+The notebook decides the style: a `# Title Block` cell selects
+`calculation`, and so does a `style: calculation` metadata line under
+`# Cover Page`; `notebooktohtml --style report|calculation` overrides
+both. Both front-matter cells take the same `key: value` metadata lines
+and revision-history table.
+
+A calculation sheet conventionally runs References, Objective, Inputs to
+Calculations, Calculations, Conclusions. `calcreport-init --style
+calculation` scaffolds that skeleton instead of the report one.
 
 ## Writing calculations
 

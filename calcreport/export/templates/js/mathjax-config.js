@@ -36,6 +36,14 @@ window.MathJax = {
 
             MathJax.startup.promise.then(() => {
                 console.log('MathJax initial typesetting complete');
+                // The math webfonts load lazily during the first typeset.
+                // paged.js measures block heights to decide page breaks, so
+                // wait for the final font metrics first - otherwise a block
+                // that just fits at the bottom of a page can grow by a pixel
+                // after pagination and vanish into paged.js's overflow column.
+                return document.fonts.ready;
+            }).then(() => {
+                console.log('Fonts loaded, paginating');
                 return window.PagedPolyfill.preview();
             }).then(() => {
                 console.log('Paged.js preview complete');

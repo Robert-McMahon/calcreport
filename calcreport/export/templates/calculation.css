@@ -1,0 +1,376 @@
+/* calcreport - calculation style
+   A short calculation sheet: title block and revision history at the top of
+   page 1, the document identity in a running header on every page, and
+   numbered sections that flow continuously, each set off by a rule.
+   Companion to styles.css (the engineering report style); the math, figure
+   and table rules are kept identical so calculations render the same in
+   both styles. */
+
+.link::after {
+  content: ", page " target-counter(attr(href url), page);
+}
+
+@page {
+    size: 210mm 297mm;
+    margin-top: 35mm;     /* room for the four-line running header */
+    margin-bottom: 22mm;
+    margin-left: 15mm;
+    margin-right: 15mm;
+    }
+
+/*||MARKDOWN||*/
+/* paged.js mis-fragments a markdown block that straddles a page boundary: the
+   fragments are painted out of order and the block's heading is pushed after
+   its own content (a split <ol> also restarts its numbering wrongly). Keeping
+   each markdown cell on one page avoids the fragmentation entirely.
+   Do NOT put break-inside: avoid on the inner ol/ul/table instead - paged.js
+   then loops forever and the render never completes.
+   Requires that no single markdown cell exceeds one page; an oversized cell
+   collapses the layout (it is mis-rendered without this rule too). */
+.markdown-cell {
+    break-inside: avoid;
+}
+
+/* Sections flow on from one another; a rule above each top-level heading
+   separates them instead of a page break. */
+h1 {
+    break-before: auto;
+    border-top: 1pt solid #333333;
+    padding-top: 2mm;
+    margin-top: 8mm;
+    font-size: 14pt;
+}
+
+h2 {
+    font-size: 12pt;
+    margin-top: 5mm;
+}
+
+h3 {
+    font-size: 11pt;
+}
+
+/* Keep a heading on the same page as the content that follows it */
+h1, h2, h3, h4 {
+    break-after: avoid;
+}
+
+/*||TITLE BLOCK||*/
+.title-block {
+    margin-bottom: 6mm;
+}
+
+.title-block-title {
+    font-size: 18pt;
+    font-weight: bold;
+    margin: 0 0 4mm 0;
+}
+
+.title-block-meta {
+    width: auto;
+    margin: 0 0 6mm 0;
+    font-size: 10pt;
+    text-align: left;
+}
+
+.title-block-meta th {
+    text-align: left;
+    font-weight: bold;
+    padding: 0.5mm 8mm 0.5mm 0;
+    background-color: transparent;
+    color: inherit;
+}
+
+.title-block-meta td {
+    padding: 0.5mm 0;
+}
+
+.title-block-meta tr:nth-child(even) {
+    background-color: transparent;
+}
+
+.revision-history-heading {
+    font-weight: bold;
+    font-size: 11pt;
+}
+
+.revision-history table {
+    margin-top: 1mm;
+}
+
+/*||FIGURES||*/
+
+.figure {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin: 1rem 0;
+    max-width: 100%;
+    display: block;
+    position: relative;
+}
+
+.figure img {
+    max-width: 100%;
+    width: auto;
+    height: auto;
+    display: block;
+    z-index: 1;
+}
+
+.figure figcaption {
+    text-align: center;
+    margin-top: 0.5rem;
+    font-style: italic;
+    position: relative;
+    z-index: 1;
+}
+
+.figure-ref {
+    text-decoration: none;
+    color: inherit;
+}
+
+@media print {
+    @page {
+        overflow: hidden;
+    }
+
+    .figure {
+        max-height: 80vh;
+        overflow: visible;
+        contain: layout;
+        }
+
+    .figure img {
+        max-height: 70vh;
+        object-fit: contain;
+    }
+
+    .markdown-cell {
+        position: relative;
+        z-index: 1;
+    }
+}
+
+* {
+    transform-origin: 0 0;
+    backface-visibility: hidden;
+}
+
+/*||MATH||*/
+.math {
+    margin: 0mm;
+    padding-top: 0mm;
+    display: flex;
+    flex-flow: row wrap;
+    flex: 3;
+    align-items: left;
+    justify-content: space-between;
+    break-inside: avoid;
+    }
+
+.math-equation {
+    font-size: 12pt;
+    overflow:visible;
+    font-stretch: condensed;
+    white-space-collapse: collapse;
+    }
+
+.math-comment {
+    flex: auto;
+    padding-left: 2mm;
+    text-align: right;
+    font-style: italic;
+    font-size: 10pt;
+    white-space: break-spaces;
+    }
+
+.eq-number {
+    align-self: center;
+    padding-left: 4mm;
+    font-style: normal;
+    font-size: 11pt;
+    }
+
+.equation-ref, .table-ref, .section-ref {
+    text-decoration: none;
+    color: inherit;
+    }
+
+.table-block {
+    break-inside: avoid;
+    margin: 1rem 0;
+    }
+
+.table-block .table-caption {
+    text-align: center;
+    margin-bottom: 0.5rem;
+    font-style: italic;
+    }
+
+mjx-container {
+    white-space-collapse: collapse;
+    padding: 0;
+    margin: 0;
+    }
+
+/*||HEADER AND FOOTER||*/
+/* No cover page, so the header carries the document identity on every page:
+   document number and revision, client, project, calculation title. */
+.header-content {
+    display: grid;
+    grid-template-columns: max-content 1fr;   /* author line stays on one line; identity block takes the rest */
+    width: 100%;
+    padding: 4mm 0 2mm 0;
+    font-size: 9pt;
+    border-bottom: 1pt solid #d29500;
+}
+
+.header-left {
+    text-align: left;
+}
+
+.header-right {
+    text-align: right;
+    line-height: 1.35;
+}
+
+.header-right .revision {
+    margin-left: 6mm;
+}
+
+.header-right .calc-title {
+    font-weight: bold;
+}
+
+.footer-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    padding: 3mm 0;
+    font-size: 8pt;
+    border-top: 1pt solid #d29500;
+}
+
+.footer-left {
+    text-align: left;
+    color: #666666;
+}
+
+.footer-right {
+    text-align: right;
+    font-style: italic;
+    color: #666666;
+}
+
+.page-number::before {
+    content: counter(page);
+}
+
+.page-total::before {
+    content: counter(pages);
+}
+
+.running-header {
+    position: running(header);
+}
+
+.running-footer {
+    position: running(footer);
+}
+
+@page {
+    @top-center {
+        content: element(header);
+    }
+
+    @bottom-center {
+        content: element(footer);
+    }
+}
+
+.content {
+    margin-top: 3mm;
+}
+
+/*||TABLES||*/
+
+/* repeating headers to use with pagedjs v5beta2 */
+    table[data-split-from] thead,
+    table[data-split-from] thead :is(th, tr) {
+    visibility: unset !important;
+    margin-top: unset !important;
+    margin-bottom: unset !important;
+    padding-top: unset !important;
+    padding-bottom: unset !important;
+    border-top: unset !important;
+    border-bottom: unset !important;
+    line-height: unset !important;
+    opacity: unset !important;
+    }
+
+table {
+    table-layout: auto !important;
+    margin-top: 5mm;
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+    font-size: 10pt;
+    text-align: center;
+}
+
+table th {
+    padding-top : 1mm;
+    padding-bottom: 1mm;
+    background-color: #d29500;
+    color: white;
+}
+
+tr {
+    break-inside: avoid;
+}
+
+td {
+    padding: 0.5mm 1mm;
+}
+
+tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+/*||APPENDICES||*/
+.appendix-cover {
+    justify-content: center;
+    align-items: center;
+    page: no-numbers;
+    break-inside: avoid !important;
+    break-before: always;
+}
+
+.appendix-content {
+    text-align: center;
+}
+
+.appendix-title {
+    font-size: 24pt;
+    margin-bottom: 20mm;
+}
+
+.appendix-subtitle {
+    font-size: 18pt;
+    margin-bottom: 10mm;
+}
+
+.appendix-filename {
+    font-size: 12pt;
+    color: #666;
+}
+
+@page no-numbers {
+    @bottom-center {
+        content: none !important;
+    }
+    @top-center {
+        content: none !important;
+    }
+}

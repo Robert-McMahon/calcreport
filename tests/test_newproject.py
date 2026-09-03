@@ -53,6 +53,31 @@ class TestCreateProject:
         assert 'client: Foo Industries Pty Ltd' in \
             (directory / '30041-001.py').read_text()
 
+    def test_default_style_is_report(self, tmp_path):
+        directory = create_project(tmp_path / '30043-FOO-BAR', sync=False, git=False)
+        source = (directory / '30043-001.py').read_text()
+        assert '# Cover Page' in source
+        assert '# Executive Summary' in source
+
+    def test_calculation_style(self, tmp_path):
+        directory = create_project(tmp_path / '30044-FOO-BAR', style='calculation',
+                                   sync=False, git=False)
+        source = (directory / '30044-001.py').read_text()
+        ast.parse(source)
+        assert '# Title Block' in source
+        assert 'docid: 30044-001' in source
+        for heading in ('# References', '# Objective', '# Inputs to Calculations',
+                        '# Calculations', '# Conclusions'):
+            assert heading in source
+        assert '# Cover Page' not in source
+        assert '{{' not in source
+
+    def test_unknown_style_rejected(self, tmp_path):
+        import pytest
+        with pytest.raises(ValueError):
+            create_project(tmp_path / '30045-FOO-BAR', style='memo',
+                           sync=False, git=False)
+
     def test_refuses_non_empty_directory(self, tmp_path):
         target = tmp_path / '30042-X-Y'
         target.mkdir()

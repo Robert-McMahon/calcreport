@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>calculation</title>
+
+        <!-- Styles: calculation sheet (title block, running header, no TOC) -->
+        <link rel="stylesheet" href="templates/calculation.css">
+
+        <!-- Load configurations -->
+        <script src="templates/js/mathjax-config.js"></script>
+        <script>
+            window.PagedConfig = {{
+                auto: false
+            }};
+        </script>
+
+        <!-- Load libraries -->
+        <script async src="https://cdn.jsdelivr.net/npm/mathjax@4.0.0-beta.7/tex-mml-chtml.js" id="MathJax-script"></script>
+        <script src="templates/js/paged.polyfill.js"></script>
+    </head>
+    <body>
+        <div class="content">
+            {content}
+        </div>
+    </body>
+</html>

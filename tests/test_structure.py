@@ -8,6 +8,7 @@ Regression tests for defects found while producing report 30038-001:
 """
 
 import json
+import re
 
 import pytest
 
@@ -95,3 +96,35 @@ class TestMultiHeadingCells:
         toc = report_html.split('</nav>')[0]
         assert '1.1. Kerf Geometry' in toc
         assert '1.2. Spindle Speed' in toc
+
+
+class TestEquationBlocksStayWhole:
+    """Each equation block carries an inline break-inside: avoid.
+
+    paged.js disables stylesheet break-inside rules during layout and
+    mishandles a flex block fragmented across the page boundary (it was left
+    in the hidden overflow column and dropped from report 30038-001-calc).
+    Inline styles survive, so the browser keeps the block whole.
+    """
+
+    def test_inline_break_inside_on_math_blocks(self, tmp_path):
+        html = render([
+            COVER,
+            md_cell('# Analysis'),
+            code_cell("F = equation('F = m * g', id='cap')", EQ_OUTPUT),
+        ], tmp_path)
+        tag = re.search(r'<div[^>]*id="eq-cap"[^>]*>', html).group(0)
+        assert 'class="math"' in tag
+        assert 'break-inside: avoid' in tag
+
+    def test_preview_styling_still_stripped(self, tmp_path):
+        preview = EQ_OUTPUT.replace('<div class="math" id="eq-cap">',
+                                    '<div class="math" id="eq-cap" data-preview="1" style="display:flex">')
+        html = render([
+            COVER,
+            md_cell('# Analysis'),
+            code_cell("F = equation('F = m * g', id='cap')", preview),
+        ], tmp_path)
+        assert 'data-preview' not in html
+        assert 'display:flex' not in html
+        assert 'break-inside: avoid' in html

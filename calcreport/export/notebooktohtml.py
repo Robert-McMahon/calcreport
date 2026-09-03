@@ -27,7 +27,24 @@ def debug_print(*args, **kwargs):
 # (marimo notebooks have no per-cell metadata, so `key: value` lines in the
 # cell body are the marimo equivalent of Jupyter cell metadata).
 INLINE_METADATA_KEYS = {'title', 'client', 'project', 'docid', 'revision',
-                        'filename', 'date', 'author'}
+                        'filename', 'date', 'author', 'style'}
+
+# Document styles and the bundled template each renders with. A project-local
+# ./templates/<name> overrides the bundled file of the same name.
+#   report      - engineering report: cover page, executive summary, table of
+#                 contents, every h1 section starting on a new page.
+#   calculation - calculation sheet: title block and revision history at the
+#                 top of page 1, running header on every page, numbered
+#                 sections flowing continuously under a rule, no TOC.
+# The style comes from --style, else the front-matter `style:` metadata line
+# (a `# Title Block` cell implies calculation), else report.
+STYLE_TEMPLATES = {
+    'report': 'report_template.html',
+    'calculation': 'calculation_template.html',
+}
+
+# First line of the running header on every page.
+HEADER_AUTHOR_LINE = 'Robert McMahon BEng(Mech), Consultant Engineer'
 
 
 def extract_inline_metadata(source: str):
@@ -90,34 +107,58 @@ class DocumentStructure:
         return '.'.join(str(n) for n in current_numbers if n > 0)
 
 class NotebookToHTML:
-    def __init__(self, template_path=None):
+    def __init__(self, template_path=None, style=None):
         self.debug_mode = DEBUG_MODE
         self.structure = DocumentStructure()
-        self.template = self._load_template(template_path)
+        self.template_path = template_path
+        self.style_override = style  # command-line choice beats notebook metadata
+        self.style = 'report'
+        # The template depends on the style, which is only known once the
+        # notebook's front matter has been read - loaded in convert_notebook.
+        self.template = None
         self.figure_refs = {}   # figure id -> number
         self.eq_refs = {}       # equation id -> number
         self.tbl_refs = {}      # table id -> number
         self.sec_refs = {}      # section id -> {'number': '1.2', 'anchor': 's1s2'}
 
-    def _load_template(self, template_path=None):
-        """Load the report template.
+    def _load_template(self, template_path=None, style='report'):
+        """Load the HTML template for the document style.
 
         Resolution order: explicit path argument, then a project-local
-        ./templates/report_template.html (allows per-project overrides),
-        then the template bundled with the package.
+        ./templates/<style template> (allows per-project overrides), then
+        the template bundled with the package.
         """
         if template_path is not None:
             print(f"Loading template file: {template_path}")
             return Path(template_path).read_text(encoding='utf-8')
 
-        local_template = Path('./templates/report_template.html')
+        template_name = STYLE_TEMPLATES[style]
+        local_template = Path('./templates') / template_name
         if local_template.exists():
             print(f"Loading project template: {local_template}")
             return local_template.read_text(encoding='utf-8')
 
-        packaged = resources.files('calcreport.export').joinpath('templates/report_template.html')
-        print("Loading bundled template (no ./templates/report_template.html found)")
+        packaged = resources.files('calcreport.export').joinpath(f'templates/{template_name}')
+        print(f"Loading bundled {style} template (no ./templates/{template_name} found)")
         return packaged.read_text(encoding='utf-8')
+
+    def resolve_style(self):
+        """Decide the document style once the front matter has been read.
+
+        Precedence: --style on the command line, then the `style:` metadata
+        line of the cover page / title block cell (a `# Title Block` heading
+        defaults it to calculation), then report.
+        """
+        cover = self.structure.cover_page
+        style = (self.style_override
+                 or (cover.metadata.get('style') if cover else None)
+                 or 'report')
+        style = style.strip().lower()
+        if style not in STYLE_TEMPLATES:
+            raise ValueError(
+                f"Unknown document style '{style}' - expected one of: "
+                f"{', '.join(STYLE_TEMPLATES)}")
+        return style
     
     def _apply_inline_metadata(self, nb_cell):
         """Merge `key: value` lines from the cell source into its metadata.
@@ -153,9 +194,14 @@ class NotebookToHTML:
                 lines = nb_cell.source.split('\n')
                 for line in lines:
                     # Process special sections first
-                    if line.startswith('# Cover Page'):
+                    if line.startswith(('# Cover Page', '# Title Block')):
+                        # Front matter: document metadata plus the revision
+                        # history table. `# Title Block` is the calculation
+                        # style's equivalent of the report's cover page.
                         nb_cell.category = "cover_page"
                         self._apply_inline_metadata(nb_cell)
+                        if line.startswith('# Title Block'):
+                            nb_cell.metadata.setdefault('style', 'calculation')
                         self.structure.cover_page = nb_cell
 
                     elif line.startswith('# Executive Summary'):
@@ -176,7 +222,8 @@ class NotebookToHTML:
                         text = header_match.group(2).strip()
 
                         # Skip if this is a special section we already handled
-                        if any(x in text for x in ['Cover Page', 'Executive Summary', 'Appendix']):
+                        if any(x in text for x in ['Cover Page', 'Title Block',
+                                                   'Executive Summary', 'Appendix']):
                             continue
 
                         # A '{#sec:id}' suffix makes the section referenceable
@@ -242,10 +289,14 @@ class NotebookToHTML:
             metadata: Dictionary containing document metadata
         '''
         """
-        metadata = self.structure.cover_page.metadata
+        cover = self.structure.cover_page
+        metadata = cover.metadata if cover else {}
+        if self.style == 'calculation':
+            return self._generate_calculation_header_footer(metadata)
+
         meta_html = ['<div class="running-header">']
         meta_html.append('<div class="header-content">')
-        meta_html.append('<div class="header-left">Robert McMahon BEng(Mech), Consultant Engineer')
+        meta_html.append(f'<div class="header-left">{HEADER_AUTHOR_LINE}')
         meta_html.append('</div>')
         meta_html.append('<div class="header-center">{}</div>'.format(metadata.get('title', '')))
         meta_html.append('<div class="header-right">')
@@ -266,7 +317,40 @@ class NotebookToHTML:
         meta_html.append('</div>')
         meta_html.append('</div>')
 
-        return '\n'.join(meta_html) 
+        return '\n'.join(meta_html)
+
+    def _generate_calculation_header_footer(self, metadata):
+        """Running header/footer for the calculation style.
+
+        The header carries the document identity on every page (there is no
+        cover page): document number and revision, client, project and the
+        calculation title. The footer carries the page count.
+        """
+        docid = metadata.get('docid', '')
+        revision = metadata.get('revision', '')
+        return '\n'.join([
+            '<div class="running-header">',
+            '<div class="header-content">',
+            f'<div class="header-left">{HEADER_AUTHOR_LINE}</div>',
+            '<div class="header-right">',
+            f'<div class="docid">Document #: {docid}'
+            f'<span class="revision">Rev: {revision}</span></div>',
+            f'<div class="client">Client: {metadata.get("client", "")}</div>',
+            f'<div class="project">Project: {metadata.get("project", "")}</div>',
+            f'<div class="calc-title">Calculation: {metadata.get("title", "")}</div>',
+            '</div>',
+            '</div>',
+            '</div>',
+            '<div class="running-footer">',
+            '<div class="footer-content">',
+            f'<div class="footer-left">{docid} Rev {revision}</div>',
+            '<div class="footer-right">',
+            '<div class="page-count">Page <span class="page-number"></span>'
+            ' of <span class="page-total"></span></div>',
+            '</div>',
+            '</div>',
+            '</div>',
+        ])
 
     def collect_figure_references(self, cells) -> dict:
         """
@@ -411,10 +495,51 @@ class NotebookToHTML:
             toc_html.append('</ol></nav>')
             return '\n'.join(toc_html)
 
+    def generate_title_block(self):
+        """Page-1 title block for the calculation style.
+
+        Replaces the cover page: the calculation title, a compact identity
+        table, and the revision history table from the `# Title Block` cell.
+        """
+        cover = self.structure.cover_page
+        if not cover:
+            return ""
+        html = cmarkgfm.github_flavored_markdown_to_html(cover.source, options)
+        revision_table = BeautifulSoup(html, 'html.parser').find('table')
+        metadata = cover.metadata
+
+        identity = [
+            ('Client', metadata.get('client', '')),
+            ('Project', metadata.get('project', '')),
+            ('Document #', metadata.get('docid', '')),
+            ('Revision', metadata.get('revision', '')),
+            ('Date', metadata.get('date', '')),
+            ('Author', metadata.get('author', '')),
+        ]
+        identity_rows = '\n'.join(
+            f'<tr><th>{label}</th><td>{value}</td></tr>'
+            for label, value in identity if value)
+        revision_html = (
+            f'<div class="revision-history">'
+            f'<div class="revision-history-heading">Revision History</div>'
+            f'{revision_table}</div>'
+            if revision_table else '')
+        return f'''
+            <div class="title-block" id="title-block">
+                <div class="title-block-title">{metadata.get('title', 'Calculation')}</div>
+                <table class="title-block-meta">
+                    {identity_rows}
+                </table>
+                {revision_html}
+            </div>
+            '''
+
     def generate_cover_page(self):
             """Generate cover page HTML using metadata from cover page cell."""
             if not self.structure.cover_page:
                 return ""
+            if self.style == 'calculation':
+                return self.generate_title_block()
             source_content = self.structure.cover_page.source
             # Convert markdown to HTML
             html = cmarkgfm.github_flavored_markdown_to_html(source_content, options)
@@ -679,13 +804,24 @@ class NotebookToHTML:
                     # Strip notebook-preview inline styling (marked
                     # data-preview) so the report stylesheet keeps control
                     # of layout and typography. Only re-serialize when
-                    # something was stripped, to leave legacy outputs
+                    # something changes, to leave legacy outputs
                     # byte-identical.
-                    if 'data-preview' in html_content:
+                    if 'data-preview' in html_content or 'class="math"' in html_content:
                         fragment = BeautifulSoup(html_content, 'html.parser')
                         for element in fragment.select('[data-preview]'):
                             del element['style']
                             del element['data-preview']
+                        # paged.js disables every stylesheet break-inside rule
+                        # while it lays pages out and re-implements the intent
+                        # itself, but it mishandles a flex container that the
+                        # browser has fragmented across the page boundary: the
+                        # block is left in paged.js's hidden overflow column
+                        # and silently vanishes from the report. An inline
+                        # style is not disabled, so the browser keeps each
+                        # equation block whole and paged.js moves it cleanly
+                        # to the next page.
+                        for element in fragment.select('div.math'):
+                            element['style'] = 'break-inside: avoid'
                         html_content = str(fragment)
 
                     # Fill equation/table numbers and resolve @refs (so
@@ -784,11 +920,17 @@ class NotebookToHTML:
         # Extract document structure (also registers {#sec:id} references)
         self.extract_structure(notebook['cells'])
 
+        # The front matter decides the style, and the style the template
+        self.style = self.resolve_style()
+        print(f"Document style: {self.style}")
+        self.template = self._load_template(self.template_path, self.style)
+
         # Generate document components
         cover_page = self.generate_cover_page()
         header_footer = self.generate_header_footer()
         executive_summary = self.generate_executive_summary()
-        toc = self.generate_toc_html()
+        # A calculation sheet is short enough not to need a contents list
+        toc = '' if self.style == 'calculation' else self.generate_toc_html()
         
 
         # Process body content
@@ -825,7 +967,7 @@ class NotebookToHTML:
         return self.template.format(content=content)
 
 def convert_notebook_to_html(notebook_path: str, output_path: str, template_path: str = None,
-                             standalone: bool = False):
+                             standalone: bool = False, style: str = None):
     """
     Convert a Jupyter notebook to a formatted HTML document.
 
@@ -835,8 +977,10 @@ def convert_notebook_to_html(notebook_path: str, output_path: str, template_path
         template_path: Optional path to a report template HTML file.
         standalone: Inline local CSS/JS and base64-encode images so the
             output is a single portable file (MathJax still loads from CDN).
+        style: Document style ('report' or 'calculation'); overrides the
+            notebook's own front matter. Default: decided by the notebook.
     """
-    converter = NotebookToHTML(template_path=template_path)
+    converter = NotebookToHTML(template_path=template_path, style=style)
 
     html_content = converter.convert_notebook(notebook_path)
     soup = BeautifulSoup(html_content, 'html.parser')
@@ -868,7 +1012,12 @@ def main():
     parser = argparse.ArgumentParser(description="Convert a Jupyter notebook to a formatted HTML document.")
     parser.add_argument("notebook_path", help="Path to the input .ipynb file.")
     parser.add_argument("output_path", help="Path where the HTML file should be saved.")
-    parser.add_argument("--template", help="Path to a report template HTML file (default: ./templates/report_template.html if present, else the bundled template).")
+    parser.add_argument("--template", help="Path to a report template HTML file (default: the style's template from ./templates/ if present, else the bundled one).")
+    parser.add_argument("--style", choices=sorted(STYLE_TEMPLATES),
+                        help="Document style: 'report' (cover page, executive summary, TOC) or "
+                             "'calculation' (title block and revision history on page 1, no TOC). "
+                             "Default: the notebook's front matter - a '# Title Block' cell or a "
+                             "'style: calculation' line selects the calculation style.")
     parser.add_argument("--debug", action="store_true", help="Print debug output and write it to debug.log.")
     parser.add_argument("--standalone", action="store_true",
                         help="Produce a single self-contained HTML file: inline the template "
@@ -885,7 +1034,7 @@ def main():
         DEBUG_MODE = True
 
     convert_notebook_to_html(args.notebook_path, args.output_path, template_path=args.template,
-                             standalone=args.standalone)
+                             standalone=args.standalone, style=args.style)
 
     if args.pdf:
         from .htmltopdf import html_to_pdf
